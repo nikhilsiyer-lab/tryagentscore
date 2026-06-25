@@ -1,0 +1,364 @@
+import { useState, useEffect } from 'react';
+import type { ScanReport, CheckResult } from '../lib/scanEngine';
+import './Results.css';
+
+interface ResultsProps {
+  report: ScanReport;
+  onRescan: () => void;
+}
+
+interface StreamedQuery {
+  text: string;
+  cited: boolean;
+}
+
+export default function Results({ report, onRescan }: ResultsProps) {
+  const [prompts, setPrompts] = useState<StreamedQuery[]>([]);
+  const [technicalChecks, setTechnicalChecks] = useState<CheckResult[]>([]);
+  const [compositeScore, setCompositeScore] = useState<number>(0);
+  const [citationRate, setCitationRate] = useState<number>(0);
+  const [citedCount, setCitedCount] = useState<number>(0);
+  const [isScanning, setIsScanning] = useState(true);
+  
+  const [email, setEmail] = useState('');
+  const [emailSubmitted, setEmailSubmitted] = useState(false);
+  const [expandedFixes, setExpandedFixes] = useState(false);
+
+  // Hook up SSE scan pipeline
+  useEffect(() => {
+    setPrompts([]);
+    setIsScanning(true);
+
+    const eventSource = new EventSource(`/api/scan?url=${encodeURIComponent(report.url)}`);
+
+    eventSource.addEventListener('audit_complete', (e: any) => {
+      const data = JSON.parse(e.data);
+      setTechnicalChecks(data.technicalChecks);
+    });
+
+    eventSource.addEventListener('query_result', (e: any) => {
+      const data = JSON.parse(e.data);
+      setPrompts(prev => [...prev, { text: data.query, cited: data.cited }]);
+    });
+
+    eventSource.addEventListener('scan_complete', (e: any) => {
+      const data = JSON.parse(e.data);
+      setCompositeScore(data.compositeScore);
+      setCitationRate(data.citationRate);
+      setCitedCount(data.citedCount);
+      setIsScanning(false);
+      eventSource.close();
+    });
+
+    eventSource.addEventListener('error', () => {
+      setIsScanning(false);
+      eventSource.close();
+    });
+
+    return () => {
+      eventSource.close();
+    };
+  }, [report.url]);
+
+  const getScoreColorClass = (score: number) => {
+    if (score <= 39) return 'score-amber';
+    if (score <= 69) return 'score-blue';
+    return 'score-green';
+  };
+
+  const scoreClass = getScoreColorClass(isScanning ? 0 : compositeScore);
+
+  const getStatusIcon = (status: string) => {
+    if (status === 'pass') return <span className="status-icon pass">✓</span>;
+    if (status === 'warning') return <span className="status-icon warn">⚠</span>;
+    return <span className="status-icon cross">✗</span>;
+  };
+
+  return (
+    <div className="results-container animate-fade-in">
+      
+      {/* PERSISTENT URL BAR */}
+      <div className="persistent-url-bar">
+        <span className="url-string">tryagentscore.com/results/a3f9b2c1</span>
+        <button className="copy-link-btn" onClick={() => alert('Link copied to clipboard!')}>Copy link</button>
+      </div>
+
+      <div className="results-content-wrapper">
+        {/* ZONE 0 - HERO SCORE HEADER */}
+        <section className="zone-0">
+          <div className="zone-0-top">
+            <span className="domain-label">{report.domain}</span>
+            <div className="header-actions">
+              <button className="action-link" onClick={() => alert('Share link copied!')}>Share</button>
+              <button className="action-link" onClick={() => alert('Exporting PDF/CSV...')}>Export ↓</button>
+            </div>
+          </div>
+
+          {citedCount === 0 && !isScanning ? (
+            <p className="hero-statement">
+              AI search tools did not mention your business in any of our<br />
+              20 test searches. That is common for new sites — and it is fixable.
+            </p>
+          ) : (
+            <p className="hero-statement">
+              In our test, AI search tools mentioned your business<br />
+              in {isScanning ? '...' : citedCount} out of 20 searches. Here is your full report.
+            </p>
+          )}
+
+          <div className="score-box-wrapper">
+            <div className={`score-box-border ${scoreClass}`}>
+              <div className="score-box-title">AI visibility baseline</div>
+              <div className={`score-box-value ${scoreClass}`}>
+                {isScanning ? '...' : `${compositeScore}/100`}
+              </div>
+              <div className="score-bar-bg">
+                <div className={`score-bar-fill ${scoreClass}`} style={{ width: `${isScanning ? (prompts.length/20)*100 : compositeScore}%` }}></div>
+              </div>
+            </div>
+            {!isScanning && (
+              <>
+                {citedCount === 0 ? (
+                  <div className="benchmark-text">
+                    Your page is technically live, but AI tools are not yet choosing it in test searches. This usually improves after clearer page text, crawler access, and more mentions across the web.
+                  </div>
+                ) : (
+                  <div className="benchmark-text">
+                    The average for service businesses is 31/100.<br/>
+                    You are in the top half of businesses we have tested.
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* ZONE 1 - AI READINESS AUDIT */}
+        <section className="zone-1">
+          <div className="section-divider">
+            <span className="line-prefix">──</span>
+            <span className="line-text">Technical Readiness</span>
+            <span className="line-suffix"></span>
+          </div>
+
+          <ul className="audit-list">
+            {technicalChecks.length > 0 ? (
+              technicalChecks.map((check) => (
+                <li key={check.id} className="audit-item">
+                  {getStatusIcon(check.status)}
+                  <span className="audit-name">{check.name}</span>
+                </li>
+              ))
+            ) : (
+              <li className="audit-item" style={{ fontFamily: 'var(--font-mono)' }}>Loading technical checks...</li>
+            )}
+          </ul>
+        </section>
+
+        {/* EMAIL CAPTURE (Inline) */}
+        {!isScanning && (
+          <div className="inline-email-capture animate-slide-up">
+            <div className="email-capture-inner">
+              <h4>Want to know when your score improves?</h4>
+              <p>We'll re-run this scan weekly and email you<br/>when something changes. Free.</p>
+              {!emailSubmitted ? (
+                <form className="email-form" onSubmit={(e) => { e.preventDefault(); setEmailSubmitted(true); }}>
+                  <input 
+                    type="email" 
+                    placeholder="your@email.com" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                  <button type="submit">Notify me</button>
+                </form>
+              ) : (
+                <p className="success-msg">✓ Thanks! We'll keep you updated.</p>
+              )}
+              <p className="privacy-note">No spam. Unsubscribe anytime. <a href="#">Privacy policy</a>.</p>
+            </div>
+          </div>
+        )}
+
+        {/* ZONE 2 - CITATION SCAN */}
+        <section className="zone-2">
+          <div className="section-divider">
+            <span className="line-prefix">──</span>
+            <span className="line-text">AI Citation Test</span>
+            <span className="line-suffix"></span>
+          </div>
+
+          {isScanning ? (
+            <div className="streaming-container">
+              <p className="streaming-header">Checking how AI search tools respond to queries<br/>about your business...</p>
+              <div className="stream-list">
+                {prompts.map((q, idx) => (
+                  <div key={idx} className="stream-item">
+                    <span className="stream-text">"{q.text}"</span>
+                    <span className={`stream-status ${q.cited ? 'pass' : 'cross'}`}>
+                      {q.cited ? '✓ cited' : '✗ not cited'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="streaming-footer">
+                <span>scanning {prompts.length} of 20 ▌</span>
+              </div>
+            </div>
+          ) : (
+            <div className="citation-results animate-slide-up">
+              {citedCount === 0 ? (
+                <p className="citation-summary" style={{ fontWeight: 'normal', lineHeight: '1.6' }}>
+                  AI tools did not cite your business in any of the 20 test searches. The most common reason is insufficient crawlable content — see your action plan below.
+                </p>
+              ) : (
+                <>
+                  <p className="citation-summary">Results: cited in {citedCount} of 20 searches</p>
+                  <ul className="intent-list">
+                    {report.intentCategories.map(cat => (
+                      <li key={cat.name} className="intent-item">
+                        <span className="intent-name">{cat.name}</span>
+                        <div className="intent-bars">
+                          {Array.from({length: cat.total}).map((_, i) => (
+                            <span key={i} className={`intent-bar ${i < (cat.cited) ? 'filled' : ''}`}></span>
+                          ))}
+                        </div>
+                        <span className="intent-stats">{cat.cited}/{cat.total} cited</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* ZONE 3 - COMPETITOR GAP */}
+        {!isScanning && (
+          <section className="zone-3 animate-slide-up">
+            <div className="section-divider">
+              <span className="line-prefix">──</span>
+              <span className="line-text">Who AI is recommending instead</span>
+              <span className="line-suffix"></span>
+            </div>
+            
+            <p className="section-desc">These businesses appeared in searches where<br/>you were not cited:</p>
+            
+            <ul className="competitor-list">
+              {report.competitors.map(comp => (
+                <li key={comp.domain} className="competitor-item">
+                  <span className="comp-domain">{comp.domain}</span>
+                  <span className="comp-stats">appeared in {comp.appearances} of 20 searches</span>
+                </li>
+              ))}
+            </ul>
+            <div className="add-competitor">
+              <span className="add-icon">+</span>
+              <input type="text" placeholder="Add a competitor to track [enter URL]" />
+            </div>
+          </section>
+        )}
+
+        {/* ZONE 4 - FIX LIST */}
+        {!isScanning && (
+          <section className="zone-4 animate-slide-up">
+            <div className="section-divider">
+              <span className="line-prefix">──</span>
+              <span className="line-text">Your action plan</span>
+              <span className="line-suffix"></span>
+            </div>
+            
+            <p className="section-desc">These three changes will have the most impact:</p>
+
+            <div className="fix-list">
+              {report.topFixes.slice(0, 3).map((fix, idx) => (
+                <div key={fix.id} className="fix-card">
+                  <div className="fix-num">{idx + 1}</div>
+                  <div className="fix-content">
+                    <h4>{fix.title}</h4>
+                    <p>{fix.description}</p>
+                    <div className="fix-footer">
+                      <button className="fix-action-link">
+                        [{fix.fixAction === 'llms' && 'Download your llms.txt →'}
+                        {fix.fixAction === 'robots' && 'Download updated robots.txt →'}
+                        {fix.fixAction === 'schema' && 'See how to add this →'}
+                        {fix.fixAction === 'link' && 'Read guide →'}]
+                      </button>
+                      <span className="fix-time">Takes {fix.timeEstimate.replace('Takes ', '')}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="section-divider subtle-divider">
+              <span className="line-prefix">──</span>
+              <span className="line-text">Further improvements</span>
+              <span className="line-suffix"></span>
+            </div>
+            
+            <button className="expand-fixes-link" onClick={() => setExpandedFixes(!expandedFixes)}>
+              [+ {report.topFixes.length - 3} more items] (click to expand)
+            </button>
+          </section>
+        )}
+
+        {/* ZONE 5 - COMPETITIVE REPORT TEASER (GROWTH UPGRADE) */}
+        {!isScanning && (
+          <section className="zone-5 animate-slide-up">
+            <div className="section-divider">
+              <span className="line-prefix">──</span>
+              <span className="line-text">See how you compare across AI tools</span>
+              <span className="line-suffix"></span>
+            </div>
+            
+            <p className="section-desc">
+              These businesses are being cited in searches where you are not:
+            </p>
+            
+            <ul className="competitive-teaser-list" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', marginBottom: '24px', padding: 0, listStyle: 'none' }}>
+              <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ flex: 1 }}>competitor1.com</span>
+                <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>████████████░░░░</span>
+                <span style={{ width: '40px', textAlign: 'right' }}>12/20</span>
+              </li>
+              <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ flex: 1 }}>competitor2.com</span>
+                <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>████████░░░░░░░░</span>
+                <span style={{ width: '40px', textAlign: 'right' }}>8/20</span>
+              </li>
+              <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ flex: 1 }}>competitor3.com</span>
+                <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>█████░░░░░░░░░░░</span>
+                <span style={{ width: '40px', textAlign: 'right' }}>5/20</span>
+              </li>
+              <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', opacity: 0.5 }}>
+                <span style={{ flex: 1 }}>[+ 7 more]</span>
+                <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>░░░░░░░░░░░░░░░░</span>
+                <span style={{ width: '40px', textAlign: 'right', filter: 'blur(4px)' }}>████</span>
+              </li>
+            </ul>
+            
+            <p className="section-desc" style={{ marginBottom: '24px' }}>
+              See the full breakdown across ChatGPT, Perplexity, Gemini and Claude —<br/>
+              which prompts trigger citations for your competitors, and what<br/>
+              their pages do differently.
+            </p>
+
+            <div className="growth-gate">
+              <div className="gate-actions" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <button className="btn-growth" onClick={() => alert('Redirect to Stripe checkout...')}>
+                  [Unlock competitive report →]
+                </button>
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>19 EUR/month · Cancel anytime</span>
+              </div>
+              <button className="btn-maybe-later" onClick={onRescan} style={{ marginTop: '16px' }}>
+                [Maybe later]
+              </button>
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
