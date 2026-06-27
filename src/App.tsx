@@ -99,7 +99,7 @@ export default function App() {
       {/* VIEWS */}
       {view === 'home' && <Home onStartScan={handleStartScan} />}
       {view === 'scanning' && <Scanning url={targetUrl} onScanComplete={handleScanComplete} />}
-      {view === 'results' && report && <Results report={report} onRescan={handleRescan} />}
+      {view === 'results' && report && <Results report={report} onRescan={handleRescan} onNavigateToPricing={() => setView('pricing')} />}
       {view === 'pricing' && <Pricing onBack={() => setView(report ? 'results' : 'home')} onUpgrade={handleUpgradeSimulate} />}
       {view === 'welcome' && <Welcome onNewScan={handleRescan} onBackToResults={() => setView('results')} />}
       {view === 'about' && <About />}

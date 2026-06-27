@@ -5,6 +5,7 @@ import './Results.css';
 interface ResultsProps {
   report: ScanReport;
   onRescan: () => void;
+  onNavigateToPricing?: () => void;
 }
 
 interface StreamedQuery {
@@ -155,27 +156,35 @@ export default function Results({ report, onRescan }: ResultsProps) {
           </ul>
         </section>
 
-        {/* EMAIL CAPTURE (Inline) */}
+        {/* PRO MONITORING WAITLIST (Inline) */}
         {!isScanning && (
-          <div className="inline-email-capture animate-slide-up">
+          <div className="inline-email-capture animate-slide-up" style={{ textAlign: 'center', padding: '32px 24px' }}>
             <div className="email-capture-inner">
-              <h4>Want to know when your score improves?</h4>
-              <p>We'll re-run this scan weekly and email you<br/>when something changes. Free.</p>
-              {!emailSubmitted ? (
-                <form className="email-form" onSubmit={(e) => { e.preventDefault(); setEmailSubmitted(true); }}>
-                  <input 
-                    type="email" 
-                    placeholder="your@email.com" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                  <button type="submit">Notify me</button>
-                </form>
-              ) : (
-                <p className="success-msg">✓ Thanks! We'll keep you updated.</p>
-              )}
-              <p className="privacy-note">No spam. Unsubscribe anytime. <a href="#">Privacy policy</a>.</p>
+              <h4 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px' }}>Want to know when your score improves?</h4>
+              <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                Weekly monitoring — coming with Pro.
+              </p>
+              <button 
+                onClick={onNavigateToPricing} 
+                style={{ 
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 28px', 
+                  background: '#0f172a', 
+                  color: '#ffffff', 
+                  border: 'none', 
+                  borderRadius: '6px', 
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s, transform 0.1s'
+                }}
+                onMouseOver={e => e.currentTarget.style.background = '#1e293b'}
+                onMouseOut={e => e.currentTarget.style.background = '#0f172a'}
+              >
+                Join the Pro waitlist →
+              </button>
             </div>
           </div>
         )}
