@@ -1,4 +1,9 @@
 import { NextRequest } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Groq } from 'groq-sdk';
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
 
 // 14 Technical Factors
 const TECHNICAL_CHECKS_LIST = [
@@ -18,6 +23,77 @@ const TECHNICAL_CHECKS_LIST = [
   { id: 'https', name: 'HTTPS Enforced', description: 'Secure connections allowed.' }
 ];
 
+// Helper to extract clean text from HTML body
+function cleanHtmlText(html: string): string {
+  // Strip script and style tags
+  let text = html.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
+  // Strip HTML tags
+  text = text.replace(/<[^>]+>/g, ' ');
+  // Clean whitespace
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+async function extractBusinessDetails(html: string, domain: string) {
+  const cleanText = cleanHtmlText(html).substring(0, 4000);
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  
+  const prompt = `Analyze this webpage content for the domain ${domain} and extract:
+1. The official Business Name.
+2. The specific Business Category (e.g., Physiotherapy Clinic, Dentist, Italian Restaurant, Law Firm).
+3. The City/Location of the business.
+
+Return ONLY a raw JSON object with the keys "businessName", "category", and "city". Do not include markdown blocks or any other text.
+Content:
+${cleanText}`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text().trim();
+  // Strip any markdown code fences if present
+  const cleanJson = text.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+  return JSON.parse(cleanJson);
+}
+
+async function generateNicheQueries(businessName: string, category: string, city: string) {
+  const response = await groq.chat.completions.create({
+    model: 'llama3-8b-8192',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an AI search query generator. Generate exactly 5 realistic, natural search queries that a potential customer might ask an AI (like Gemini, ChatGPT, or Claude) when looking for services/products related to this business. Return ONLY a JSON object with a key "queries" mapping to an array of 5 strings.'
+      },
+      {
+        role: 'user',
+        content: `Business Name: ${businessName}\nCategory: ${category}\nCity: ${city}`
+      }
+    ],
+    response_format: { type: 'json_object' }
+  });
+  
+  const data = JSON.parse(response.choices[0]?.message?.content || '{}');
+  return data.queries || [];
+}
+
+async function generateFixSuggestions(htmlContent: string) {
+  const cleanText = cleanHtmlText(htmlContent).substring(0, 3000);
+  const response = await groq.chat.completions.create({
+    model: 'llama3-8b-8192',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an SEO and GEO expert. Based on the website text, generate exactly 3 concrete, customized fix recommendations to improve the site\'s visibility in AI search. Return ONLY a JSON object with a key "fixes" containing an array of 3 objects, each with "title" (string), "description" (string), "impact" ("Critical" | "High" | "Medium"), and "timeEstimate" (string).'
+      },
+      {
+        role: 'user',
+        content: `Website excerpt: ${cleanText}`
+      }
+    ],
+    response_format: { type: 'json_object' }
+  });
+
+  const data = JSON.parse(response.choices[0]?.message?.content || '{}');
+  return data.fixes || [];
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const targetUrl = searchParams.get('url');
@@ -25,6 +101,16 @@ export async function GET(request: NextRequest) {
   if (!targetUrl) {
     return new Response(JSON.stringify({ error: 'URL parameter is required' }), {
       status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Check key requirements immediately
+  if (!process.env.GEMINI_API_KEY || !process.env.GROQ_API_KEY) {
+    return new Response(JSON.stringify({ 
+      error: 'API Keys missing. Please configure GEMINI_API_KEY and GROQ_API_KEY in your environment.' 
+    }), {
+      status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
   }
@@ -40,107 +126,146 @@ export async function GET(request: NextRequest) {
       };
 
       try {
-        // Step 1: Simulated Crawling & metadata fetching (lightweight Playwright alternative for MVP)
         sendEvent('crawl_start', { domain });
-        await new Promise(resolve => setTimeout(resolve, 800));
 
-        let hasSchema = true;
-        let blocksAI = false;
-        
-        try {
-          const fetchUrl = targetUrl.startsWith('http') ? targetUrl : `https://${targetUrl}`;
-          const res = await fetch(fetchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 0 } });
-          const html = await res.text();
-          
-          hasSchema = html.includes('application/ld+json');
-          blocksAI = html.includes('GPTBot') || html.includes('Google-Extended');
-        } catch (err) {
-          // Fallback if domain is not reachable or fetch errors out
-          hasSchema = Math.random() > 0.3;
-          blocksAI = Math.random() > 0.7;
-        }
+        // Crawl page
+        const fetchUrl = targetUrl.startsWith('http') ? targetUrl : `https://${targetUrl}`;
+        const fetchRes = await fetch(fetchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 0 } });
+        const html = await fetchRes.text();
 
-        // Evaluate 14 Technical factors
+        // 1. Audit Factors
+        const hasSchema = html.includes('application/ld+json');
+        const blocksAI = html.includes('GPTBot') || html.includes('Google-Extended') || html.includes('PerplexityBot');
+        const hasH1 = /<h1[^>]*>/i.test(html);
+        const isHttps = fetchUrl.startsWith('https');
+
         const technicalChecks = TECHNICAL_CHECKS_LIST.map((check) => {
           let status: 'pass' | 'warning' | 'fail' = 'pass';
           if (check.id === 'schema' && !hasSchema) status = 'fail';
-          if (check.id === 'llms') status = 'warning';
           if (check.id === 'robots' && blocksAI) status = 'warning';
-          if (check.id === 'contact') status = 'fail';
-          if (check.id === 'meta-desc' && Math.random() > 0.5) status = 'warning';
-          if (check.id === 'faq') status = 'warning';
+          if (check.id === 'h1' && !hasH1) status = 'fail';
+          if (check.id === 'https' && !isHttps) status = 'fail';
+          // Simulated items that are less trivial to parse strictly
+          if (check.id === 'llms') status = 'warning';
+          if (check.id === 'contact' && !html.includes('tel') && !html.includes('address')) status = 'fail';
           return { ...check, status };
         });
 
-        // Step 2: Stream Audit Results (Zone 1)
         sendEvent('audit_complete', { technicalChecks });
 
-        // Step 3: Stream 20 citation queries (Zone 2)
-        const mockQueries = [
-          { text: `Best services on ${domain}`, cited: Math.random() > 0.5 },
-          { text: `Where to find reliable professionals on ${domain}`, cited: Math.random() > 0.6 },
-          { text: `Alternative to competitors of ${domain}`, cited: Math.random() > 0.7 },
-          { text: `${domain} customer reviews`, cited: Math.random() > 0.3 },
-          { text: `Contact address for ${domain}`, cited: Math.random() > 0.5 },
-          { text: `Is ${domain} trustworthy?`, cited: Math.random() > 0.4 },
-          { text: `Who owns ${domain}?`, cited: Math.random() > 0.6 },
-          { text: `${domain} pricing model`, cited: Math.random() > 0.5 },
-          { text: `Services comparison with ${domain}`, cited: Math.random() > 0.7 },
-          { text: `Expert opinions on ${domain}`, cited: Math.random() > 0.6 },
-          { text: `How long has ${domain} been operating?`, cited: Math.random() > 0.5 },
-          { text: `Is ${domain} open on weekends?`, cited: Math.random() > 0.8 },
-          { text: `Support email of ${domain}`, cited: Math.random() > 0.4 },
-          { text: `Refund policy of ${domain}`, cited: Math.random() > 0.7 },
-          { text: `Who are the main partners of ${domain}?`, cited: Math.random() > 0.6 },
-          { text: `Does ${domain} hire remotely?`, cited: Math.random() > 0.5 },
-          { text: `Office headquarters of ${domain}`, cited: Math.random() > 0.4 },
-          { text: `${domain} customer support response time`, cited: Math.random() > 0.5 },
-          { text: `What technology stack does ${domain} use?`, cited: Math.random() > 0.6 },
-          { text: `Recent news regarding ${domain}`, cited: Math.random() > 0.8 }
+        // 2. Extract Business Niche & Details
+        const details = await extractBusinessDetails(html, domain);
+        const { businessName, category, city } = details;
+
+        // 3. Generate Curated + Custom Queries
+        const customQueries = await generateNicheQueries(businessName, category, city);
+        
+        const libraryQueries = [
+          `Who is the best ${category} in ${city}?`,
+          `Recommendations for a reliable ${category} in ${city}`,
+          `Top-rated ${category} near ${city}`,
+          `Where should I go for ${category} in ${city}?`,
+          `Which is the most recommended ${category} in ${city}?`,
+          `Can you recommend a friendly ${category} in ${city}?`,
+          `Reviews for ${category} businesses in ${city}`,
+          `List of professional ${category} in ${city} area`,
+          `Who is the leading ${category} in ${city}?`,
+          `Best quality ${category} options in ${city}`,
+          `Is there a good ${category} in ${city} to visit?`,
+          `I need a ${category} in ${city}, who is the top choice?`,
+          `Which ${category} in ${city} has the best client reputation?`,
+          `Looking for a licensed ${category} in ${city}`,
+          `Which ${category} in ${city} is open and highly rated?`
         ];
 
+        // Pick 15 library queries + 5 custom queries to total 20 prompts
+        const allQueries = [
+          ...libraryQueries.slice(0, 15),
+          ...customQueries.slice(0, 5)
+        ].slice(0, 20);
+
+        // 4. Citation Checking with search-grounded Gemini Flash
+        const searchModel = genAI.getGenerativeModel({
+          model: 'gemini-1.5-flash',
+          tools: [{ googleSearch: {} }]
+        });
+
         let citedCount = 0;
-        for (let i = 0; i < mockQueries.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-          if (mockQueries[i].cited) citedCount++;
+        const competitorsMap = new Map<string, number>();
+
+        // Execute in batches to respect rate limits and keep SSE lively
+        for (let i = 0; i < allQueries.length; i++) {
+          const queryText = allQueries[i];
+          let cited = false;
+
+          try {
+            const res = await searchModel.generateContent(queryText);
+            const textResponse = res.response.text() || '';
+            cited = textResponse.toLowerCase().includes(businessName.toLowerCase()) || textResponse.toLowerCase().includes(domain.toLowerCase());
+
+            // Extract competitors mentioned in search grounding chunks
+            const groundingMetadata = (res.response as any).candidates?.[0]?.groundingMetadata;
+            const webSources = groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web?.uri).filter(Boolean) || [];
+
+            webSources.forEach((urlStr: string) => {
+              try {
+                let compDomain = urlStr.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+                if (compDomain !== domain && compDomain !== 'google.com' && compDomain !== 'youtube.com') {
+                  competitorsMap.set(compDomain, (competitorsMap.get(compDomain) || 0) + 1);
+                }
+              } catch (_) {}
+            });
+          } catch (e) {
+            console.error(`Error querying query ${i}:`, e);
+          }
+
+          if (cited) citedCount++;
+
           sendEvent('query_result', {
             index: i + 1,
-            total: mockQueries.length,
-            query: mockQueries[i].text,
-            cited: mockQueries[i].cited
+            total: allQueries.length,
+            query: queryText,
+            cited
           });
         }
 
-        // Step 4: Calculate final composite score
+        // 5. Generate Custom Fix suggestions based on content using Groq
+        const generatedFixes = await generateFixSuggestions(html);
+        const topFixes = generatedFixes.map((fix: any, idx: number) => ({
+          id: `fix-gen-${idx}`,
+          title: fix.title,
+          description: fix.description,
+          impact: fix.impact,
+          timeEstimate: fix.timeEstimate,
+          fixAction: 'link'
+        }));
+
+        // 6. Aggregate results
         const passCount = technicalChecks.filter(c => c.status === 'pass').length;
         const technicalScore = Math.round((passCount / 14) * 100);
-        const citationRate = citedCount / 20;
+        const citationRate = citedCount / allQueries.length;
         const compositeScore = Math.round((technicalScore * 0.3) + ((citationRate * 100) * 0.7));
+
+        const competitors = Array.from(competitorsMap.entries())
+          .map(([domain, appearances]) => ({ domain, appearances }))
+          .sort((a, b) => b.appearances - a.appearances)
+          .slice(0, 3);
 
         const report = {
           domain,
           url: targetUrl,
           compositeScore,
-          citationRate: citationRate * 100,
+          citationRate: Math.round(citationRate * 100),
           citedCount,
-          totalCount: 20
+          totalCount: allQueries.length,
+          competitors,
+          topFixes
         };
 
-        // Step 5: Save snapshot database metadata
-        // Mock save details (will execute pg integration if env is present)
-        try {
-          const supabaseUrl = process.env.SUPABASE_URL;
-          const supabaseKey = process.env.SUPABASE_ANON_KEY;
-          if (supabaseUrl && supabaseKey) {
-            // Save to database via REST endpoint or SDK...
-          }
-        } catch (e) {
-          // Silently fail snapshot write to ensure resilience
-        }
-
         sendEvent('scan_complete', report);
-      } catch (err) {
-        sendEvent('error', { message: 'Internal server error during scan' });
+      } catch (err: any) {
+        console.error('Scan routing error:', err);
+        sendEvent('error', { message: err.message || 'Internal server error during scan' });
       } finally {
         controller.close();
       }
