@@ -26,7 +26,7 @@ export default function App() {
     document.documentElement.classList.add('light-theme');
   }, []);
 
-  // Handle URL scanning params
+  // Handle URL scanning params and navigation redirects
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sharedUrl = params.get('url');
@@ -35,6 +35,10 @@ export default function App() {
       const generatedReport = generateReport(sharedUrl);
       setReport(generatedReport);
       setView('results');
+    }
+    const go = params.get('go');
+    if (go === 'pricing') {
+      setView('pricing');
     }
   }, []);
 

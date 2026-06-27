@@ -251,7 +251,53 @@ export async function GET(request: NextRequest) {
           .sort((a, b) => b.appearances - a.appearances)
           .slice(0, 3);
 
+        let scanId = null;
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+          const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+          if (supabaseUrl && supabaseKey) {
+            const { createClient } = await import('@supabase/supabase-js');
+            const supabase = createClient(supabaseUrl, supabaseKey);
+            
+            const { data, error } = await supabase.from('scans').insert({
+              url: targetUrl,
+              domain,
+              composite_score: compositeScore,
+              citation_rate: Math.round(citationRate * 100),
+              cited_count: citedCount,
+              total_count: allQueries.length,
+              technical_checks: technicalChecks,
+              top_fixes: topFixes,
+              competitors: competitors
+            }).select('id').single();
+
+            if (error) {
+              console.error('Supabase scans insert error:', error);
+            } else if (data) {
+              scanId = data.id;
+
+              if (competitors.length > 0) {
+                const snapshots = competitors.map(c => ({
+                  scan_id: scanId,
+                  competitor_domain: c.domain,
+                  appearances: c.appearances
+                }));
+                await supabase.from('competitor_snapshots').insert(snapshots);
+              }
+
+              await supabase.from('bot_visits').insert({
+                domain,
+                bot_name: 'tryagentscore-scanner',
+                user_agent: 'Gemini-1.5-Flash / Groq-Llama3'
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Failed to save scan snapshot to Supabase:', e);
+        }
+
         const report = {
+          id: scanId,
           domain,
           url: targetUrl,
           compositeScore,

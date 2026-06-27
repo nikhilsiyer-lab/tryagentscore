@@ -20,7 +20,7 @@ export default function Results({ report, onRescan }: ResultsProps) {
   const [citationRate, setCitationRate] = useState<number>(0);
   const [citedCount, setCitedCount] = useState<number>(0);
   const [isScanning, setIsScanning] = useState(true);
-  
+  const [scanId, setScanId] = useState<string | null>(report.id || null);
   const [email, setEmail] = useState('');
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [expandedFixes, setExpandedFixes] = useState(false);
@@ -47,6 +47,7 @@ export default function Results({ report, onRescan }: ResultsProps) {
       setCompositeScore(data.compositeScore);
       setCitationRate(data.citationRate);
       setCitedCount(data.citedCount);
+      setScanId(data.id || null);
       setIsScanning(false);
       eventSource.close();
     });
@@ -80,8 +81,24 @@ export default function Results({ report, onRescan }: ResultsProps) {
       
       {/* PERSISTENT URL BAR */}
       <div className="persistent-url-bar">
-        <span className="url-string">tryagentscore.com/results/a3f9b2c1</span>
-        <button className="copy-link-btn" onClick={() => alert('Link copied to clipboard!')}>Copy link</button>
+        <span className="url-string">
+          {scanId 
+            ? `${window.location.origin}/results/${scanId}` 
+            : `${window.location.origin}/results/saving...`}
+        </span>
+        <button 
+          className="copy-link-btn" 
+          onClick={() => {
+            if (scanId) {
+              navigator.clipboard.writeText(`${window.location.origin}/results/${scanId}`);
+              alert('Link copied to clipboard!');
+            } else {
+              alert('Wait a moment for the scan report to finish saving...');
+            }
+          }}
+        >
+          Copy link
+        </button>
       </div>
 
       <div className="results-content-wrapper">
