@@ -11,7 +11,7 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 120px 20px 80px;
+  padding: 120px 20px 32px;
   background: radial-gradient(circle at top, #f8fafc 0%, #ffffff 70%);
   position: relative;
   overflow: hidden;
@@ -130,7 +130,7 @@
 
 /* ZONE 2 - THE PROBLEM */
 .zone-problem {
-  padding: 80px 20px;
+  padding: 32px 20px 80px;
   background: #ffffff;
   border-top: 1px solid rgba(15, 23, 42, 0.04);
 }

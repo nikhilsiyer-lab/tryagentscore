@@ -88,7 +88,6 @@ export default function App() {
           </div>
           
           <nav style={{ display: 'flex', gap: '32px', alignItems: 'center', fontSize: '0.95rem', fontWeight: 500, color: '#475569' }}>
-            <a href="#" onClick={(e) => { e.preventDefault(); setView('about'); }} style={{ textDecoration: 'none', color: 'inherit', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#0f172a'} onMouseOut={e => e.currentTarget.style.color = '#475569'}>About</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setView('pricing'); }} style={{ textDecoration: 'none', color: 'inherit', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#0f172a'} onMouseOut={e => e.currentTarget.style.color = '#475569'}>Pricing</a>
           </nav>
           
