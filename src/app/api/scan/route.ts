@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Groq } from 'groq-sdk';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '', { apiVersion: 'v1beta' });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
 
 // 14 Technical Factors
@@ -185,7 +185,8 @@ export async function GET(request: NextRequest) {
         ].slice(0, 20);
 
         // 4. Citation Checking with search-grounded Gemini Flash
-        const searchModel = genAI.getGenerativeModel({
+        const betaGenAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '', { apiVersion: 'v1beta' });
+        const searchModel = betaGenAI.getGenerativeModel({
           model: 'gemini-1.5-flash',
           tools: [{ googleSearch: {} }]
         });
