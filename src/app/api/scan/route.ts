@@ -34,10 +34,11 @@ function cleanHtmlText(html: string): string {
 }
 
 async function extractBusinessDetails(html: string, domain: string) {
-  const cleanText = cleanHtmlText(html).substring(0, 4000);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-  
-  const prompt = `Analyze this webpage content for the domain ${domain} and extract:
+  try {
+    const cleanText = cleanHtmlText(html).substring(0, 4000);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    
+    const prompt = `Analyze this webpage content for the domain ${domain} and extract:
 1. The official Business Name.
 2. The specific Business Category (e.g., Physiotherapy Clinic, Dentist, Italian Restaurant, Law Firm).
 3. The City/Location of the business.
@@ -46,52 +47,90 @@ Return ONLY a raw JSON object with the keys "businessName", "category", and "cit
 Content:
 ${cleanText}`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim();
-  // Strip any markdown code fences if present
-  const cleanJson = text.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-  return JSON.parse(cleanJson);
+    const result = await Promise.race([
+      model.generateContent(prompt),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 4000))
+    ]) as any;
+
+    const text = result.response.text().trim();
+    const cleanJson = text.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+    return JSON.parse(cleanJson);
+  } catch (e) {
+    console.error('Failed to extract business details:', e);
+    return { businessName: domain, category: 'Business', city: 'Local' };
+  }
 }
 
 async function generateNicheQueries(businessName: string, category: string, city: string) {
-  const response = await groq.chat.completions.create({
-    model: 'llama3-8b-8192',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are an AI search query generator. Generate exactly 5 realistic, natural search queries that a potential customer might ask an AI (like Gemini, ChatGPT, or Claude) when looking for services/products related to this business. Return ONLY a JSON object with a key "queries" mapping to an array of 5 strings.'
-      },
-      {
-        role: 'user',
-        content: `Business Name: ${businessName}\nCategory: ${category}\nCity: ${city}`
-      }
-    ],
-    response_format: { type: 'json_object' }
-  });
-  
-  const data = JSON.parse(response.choices[0]?.message?.content || '{}');
-  return data.queries || [];
+  try {
+    const response = await Promise.race([
+      groq.chat.completions.create({
+        model: 'llama3-8b-8192',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an AI search query generator. Generate exactly 5 realistic, natural search queries that a potential customer might ask an AI when looking for services/products related to this business. Return ONLY a JSON object with a key "queries" mapping to an array of 5 strings.'
+          },
+          {
+            role: 'user',
+            content: `Business Name: ${businessName}\nCategory: ${category}\nCity: ${city}`
+          }
+        ],
+        response_format: { type: 'json_object' }
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 4000))
+    ]) as any;
+    
+    const data = JSON.parse(response.choices[0]?.message?.content || '{}');
+    return data.queries || [];
+  } catch (e) {
+    console.error('Failed to generate niche queries:', e);
+    return [
+      `Best services in ${city}`,
+      `Top rated ${category} near me`,
+      `${businessName} reviews`,
+      `Quality ${category} in ${city}`,
+      `Local ${category} recommendations`
+    ];
+  }
 }
 
 async function generateFixSuggestions(htmlContent: string) {
-  const cleanText = cleanHtmlText(htmlContent).substring(0, 3000);
-  const response = await groq.chat.completions.create({
-    model: 'llama3-8b-8192',
-    messages: [
+  try {
+    const cleanText = cleanHtmlText(htmlContent).substring(0, 3000);
+    const response = await Promise.race([
+      groq.chat.completions.create({
+        model: 'llama3-8b-8192',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an SEO and GEO expert. Based on the website text, generate exactly 3 concrete, customized fix recommendations to improve the site\'s visibility in AI search. Return ONLY a JSON object with a key "fixes" containing an array of 3 objects, each with "title" (string), "description" (string), "impact" ("Critical" | "High" | "Medium"), and "timeEstimate" (string).'
+          },
+          {
+            role: 'user',
+            content: cleanText
+          }
+        ],
+        response_format: { type: 'json_object' }
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 4000))
+    ]) as any;
+    
+    const data = JSON.parse(response.choices[0]?.message?.content || '{}');
+    const fixes = data.fixes || [];
+    return fixes.slice(0, 3);
+  } catch (e) {
+    console.error('Failed to generate fix suggestions:', e);
+    return [
       {
-        role: 'system',
-        content: 'You are an SEO and GEO expert. Based on the website text, generate exactly 3 concrete, customized fix recommendations to improve the site\'s visibility in AI search. Return ONLY a JSON object with a key "fixes" containing an array of 3 objects, each with "title" (string), "description" (string), "impact" ("Critical" | "High" | "Medium"), and "timeEstimate" (string).'
-      },
-      {
-        role: 'user',
-        content: `Website excerpt: ${cleanText}`
+        title: 'Add an llms.txt file',
+        description: 'Publish an llms.txt file to the root of your domain to directly feed AI tools with context about your business.',
+        impact: 'High',
+        timeEstimate: '10 minutes',
+        fixAction: 'llms'
       }
-    ],
-    response_format: { type: 'json_object' }
-  });
-
-  const data = JSON.parse(response.choices[0]?.message?.content || '{}');
-  return data.fixes || [];
+    ];
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -198,7 +237,11 @@ export async function GET(request: NextRequest) {
           let cited = false;
           let webSources: string[] = [];
           try {
-            const res = await searchModel.generateContent(queryText);
+            const res = await Promise.race([
+              searchModel.generateContent(queryText),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]) as any;
+            
             const textResponse = res.response.text() || '';
             cited = textResponse.toLowerCase().includes(businessName.toLowerCase()) || textResponse.toLowerCase().includes(domain.toLowerCase());
 
