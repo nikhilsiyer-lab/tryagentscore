@@ -15,11 +15,11 @@ interface StreamedQuery {
 
 export default function Results({ report, onRescan, onNavigateToPricing }: ResultsProps) {
   const [prompts, setPrompts] = useState<StreamedQuery[]>([]);
-  const [technicalChecks, setTechnicalChecks] = useState<CheckResult[]>([]);
-  const [compositeScore, setCompositeScore] = useState<number>(0);
-  const [citationRate, setCitationRate] = useState<number>(0);
-  const [citedCount, setCitedCount] = useState<number>(0);
-  const [isScanning, setIsScanning] = useState(true);
+  const [technicalChecks, setTechnicalChecks] = useState<CheckResult[]>(report.technicalChecks || []);
+  const [compositeScore, setCompositeScore] = useState<number>(report.compositeScore || 0);
+  const [citationRate, setCitationRate] = useState<number>(report.citationRate || 0);
+  const [citedCount, setCitedCount] = useState<number>(report.citedCount || 0);
+  const [isScanning, setIsScanning] = useState(!report.id);
   const [scanId, setScanId] = useState<string | null>(report.id || null);
   const [email, setEmail] = useState('');
   const [emailSubmitted, setEmailSubmitted] = useState(false);
@@ -32,6 +32,11 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
 
   // Hook up SSE scan pipeline
   useEffect(() => {
+    if (report.id) {
+      setIsScanning(false);
+      return;
+    }
+
     setPrompts([]);
     setIsScanning(true);
 
