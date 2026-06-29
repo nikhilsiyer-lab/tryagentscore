@@ -19,6 +19,7 @@ type ViewState = 'home' | 'scanning' | 'results' | 'pricing' | 'welcome' | 'abou
 export default function App() {
   const [view, setView] = useState<ViewState>('home');
   const [targetUrl, setTargetUrl] = useState('');
+  const [description, setDescription] = useState('');
   const [report, setReport] = useState<ScanReport | null>(null);
 
   // Always apply light theme
@@ -30,8 +31,10 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sharedUrl = params.get('url');
+    const desc = params.get('desc');
     if (sharedUrl) {
       setTargetUrl(sharedUrl);
+      if (desc) setDescription(desc);
       const generatedReport = generateReport(sharedUrl);
       setReport(generatedReport);
       setView('results');
@@ -42,13 +45,14 @@ export default function App() {
     }
   }, []);
 
-  const handleStartScan = (url: string) => {
+  const handleStartScan = (url: string, desc?: string) => {
     setTargetUrl(url);
+    if (desc) setDescription(desc);
     const generatedReport = generateReport(url);
     setReport(generatedReport);
     setView('scanning');
     
-    const newUrl = `${window.location.origin}${window.location.pathname}?url=${encodeURIComponent(url)}`;
+    const newUrl = `${window.location.origin}${window.location.pathname}?url=${encodeURIComponent(url)}${desc ? `&desc=${encodeURIComponent(desc)}` : ''}`;
     window.history.pushState({ path: newUrl }, '', newUrl);
   };
 
@@ -103,7 +107,7 @@ export default function App() {
       {/* VIEWS */}
       {view === 'home' && <Home onStartScan={handleStartScan} />}
       {view === 'scanning' && <Scanning url={targetUrl} onScanComplete={handleScanComplete} />}
-      {view === 'results' && report && <Results report={report} onRescan={handleRescan} onNavigateToPricing={() => setView('pricing')} />}
+      {view === 'results' && report && <Results report={report} description={description} onRescan={handleRescan} onNavigateToPricing={() => setView('pricing')} />}
       {view === 'pricing' && <Pricing onBack={() => setView(report ? 'results' : 'home')} onUpgrade={handleUpgradeSimulate} />}
       {view === 'welcome' && <Welcome onNewScan={handleRescan} onBackToResults={() => setView('results')} />}
       {view === 'about' && <About />}

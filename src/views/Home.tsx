@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import './Home.css';
 
 interface HomeProps {
-  onStartScan: (url: string) => void;
+  onStartScan: (url: string, description?: string) => void;
 }
 
 export default function Home({ onStartScan }: HomeProps) {
   const [inputUrl, setInputUrl] = useState('');
+  const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [scanCount, setScanCount] = useState<number | null>(null);
 
@@ -36,7 +37,7 @@ export default function Home({ onStartScan }: HomeProps) {
     try {
       new URL(targetUrl);
       setError('');
-      onStartScan(targetUrl);
+      onStartScan(targetUrl, description.trim());
     } catch (_) {
       setError('Invalid URL format. Example: yourbusiness.com');
     }
@@ -65,7 +66,15 @@ export default function Home({ onStartScan }: HomeProps) {
                 onChange={(e) => setInputUrl(e.target.value)}
                 autoFocus
               />
-              <button type="submit" className="url-submit-btn">
+              <input
+                type="text"
+                className="url-search-input description-input"
+                placeholder="What does your business do? (Optional)"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                style={{ marginTop: '12px', fontSize: '15px' }}
+              />
+              <button type="submit" className="url-submit-btn" style={{ marginTop: '12px' }}>
                 Check my score
               </button>
             </form>

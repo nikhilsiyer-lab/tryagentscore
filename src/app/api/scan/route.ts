@@ -29,23 +29,22 @@ function cleanHtmlText(html: string): string {
   let text = html.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
   // Strip HTML tags
   text = text.replace(/<[^>]+>/g, ' ');
-  // Clean whitespace
+// Clean whitespace
   return text.replace(/\s+/g, ' ').trim();
 }
 
-async function extractBusinessDetails(html: string, domain: string) {
+function isBlockedPage(html: string): boolean {
+  const signals = ['captcha', 'datadome', 'perimeterx', 'cf-challenge', 'access denied'];
+  return signals.some(s => html.toLowerCase().includes(s));
+}
+
+async function extractBusinessDetails(domain: string, descriptionOverride?: string) {
   try {
-    const cleanText = cleanHtmlText(html).substring(0, 4000);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     
-    const prompt = `Analyze this webpage content for the domain ${domain} and extract:
-1. The official Business Name.
-2. The specific Business Category (e.g., Physiotherapy Clinic, Dentist, Italian Restaurant, Law Firm).
-3. The City/Location of the business.
+    const prompt = `What business is located at the domain ${domain}? Return the official Business Name, the specific Business Category, and the primary City/Location/Market. Also, provide a 'confidence' field ('high' or 'low') based on how well you know this domain. If a description is provided: '${descriptionOverride || ''}', use it to help identify the business and set confidence to 'high'.
 
-Return ONLY a raw JSON object with the keys "businessName", "category", and "city". Do not include markdown blocks or any other text.
-Content:
-${cleanText}`;
+Return ONLY a raw JSON object with the keys "businessName", "category", "city", and "confidence". Do not include markdown blocks or any other text.`;
 
     const result = await Promise.race([
       model.generateContent(prompt),
@@ -57,7 +56,7 @@ ${cleanText}`;
     return JSON.parse(cleanJson);
   } catch (e) {
     console.error('Failed to extract business details:', e);
-    return { businessName: domain, category: 'Business', city: 'Local' };
+    return { businessName: domain, category: 'Business', city: 'Local', confidence: 'low' };
   }
 }
 
@@ -136,6 +135,7 @@ async function generateFixSuggestions(htmlContent: string) {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const targetUrl = searchParams.get('url');
+  const description = searchParams.get('description') || undefined;
 
   if (!targetUrl) {
     return new Response(JSON.stringify({ error: 'URL parameter is required' }), {
@@ -167,34 +167,46 @@ export async function GET(request: NextRequest) {
       try {
         sendEvent('crawl_start', { domain });
 
-        // Crawl page
         const fetchUrl = targetUrl.startsWith('http') ? targetUrl : `https://${targetUrl}`;
-        const fetchRes = await fetch(fetchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 0 } });
-        const html = await fetchRes.text();
 
-        // 1. Audit Factors
-        const hasSchema = html.includes('application/ld+json');
-        const blocksAI = html.includes('GPTBot') || html.includes('Google-Extended') || html.includes('PerplexityBot');
-        const hasH1 = /<h1[^>]*>/i.test(html);
-        const isHttps = fetchUrl.startsWith('https');
+        // Run technical fetch and Gemini extraction concurrently
+        const [fetchRes, details] = await Promise.all([
+          fetch(fetchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 0 } }).catch(() => null),
+          extractBusinessDetails(domain, description)
+        ]);
 
-        const technicalChecks = TECHNICAL_CHECKS_LIST.map((check) => {
-          let status: 'pass' | 'warning' | 'fail' = 'pass';
-          if (check.id === 'schema' && !hasSchema) status = 'fail';
-          if (check.id === 'robots' && blocksAI) status = 'warning';
-          if (check.id === 'h1' && !hasH1) status = 'fail';
-          if (check.id === 'https' && !isHttps) status = 'fail';
-          // Simulated items that are less trivial to parse strictly
-          if (check.id === 'llms') status = 'warning';
-          if (check.id === 'contact' && !html.includes('tel') && !html.includes('address')) status = 'fail';
-          return { ...check, status };
-        });
+        const html = fetchRes ? await fetchRes.text() : '';
+        const isBlocked = isBlockedPage(html);
 
-        sendEvent('audit_complete', { technicalChecks });
+        let technicalChecks = TECHNICAL_CHECKS_LIST.map(check => ({ ...check, status: 'pass' as 'pass' | 'warning' | 'fail' }));
+        
+        if (isBlocked || !html) {
+          // If blocked or fetch failed, set all technical checks to warning to avoid false negatives
+          technicalChecks = technicalChecks.map(check => ({ ...check, status: 'warning' as 'pass' | 'warning' | 'fail' }));
+        } else {
+          // 1. Audit Factors
+          const hasSchema = html.includes('application/ld+json');
+          const blocksAI = html.includes('GPTBot') || html.includes('Google-Extended') || html.includes('PerplexityBot');
+          const hasH1 = /<h1[^>]*>/i.test(html);
+          const isHttps = fetchUrl.startsWith('https');
 
-        // 2. Extract Business Niche & Details
-        const details = await extractBusinessDetails(html, domain);
-        const { businessName, category, city } = details;
+          technicalChecks = TECHNICAL_CHECKS_LIST.map((check) => {
+            let status: 'pass' | 'warning' | 'fail' = 'pass';
+            if (check.id === 'schema' && !hasSchema) status = 'fail';
+            if (check.id === 'robots' && blocksAI) status = 'warning';
+            if (check.id === 'h1' && !hasH1) status = 'fail';
+            if (check.id === 'https' && !isHttps) status = 'fail';
+            // Simulated items that are less trivial to parse strictly
+            if (check.id === 'llms') status = 'warning';
+            if (check.id === 'contact' && !html.includes('tel') && !html.includes('address')) status = 'fail';
+            return { ...check, status };
+          });
+        }
+
+        sendEvent('audit_complete', { technicalChecks, isBlocked });
+
+        // 2. Business Niche & Details (already extracted concurrently)
+        const { businessName, category, city, confidence } = details;
 
         // 3. Generate Curated + Custom Queries
         const customQueries = await generateNicheQueries(businessName, category, city);
@@ -366,7 +378,9 @@ export async function GET(request: NextRequest) {
           totalCount: allQueries.length,
           competitors,
           topFixes,
-          intentCategories
+          intentCategories,
+          confidence,
+          isBlocked
         };
 
         sendEvent('scan_complete', report);

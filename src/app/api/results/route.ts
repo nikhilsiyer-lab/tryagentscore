@@ -1,0 +1,53 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Scan ID parameter is required' }, { status: 400 });
+    }
+
+    if (!supabaseUrl || !supabaseKey || !supabaseUrl.startsWith('http')) {
+      return NextResponse.json({ error: 'Supabase integration is not configured with a valid URL.' }, { status: 500 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data, error } = await supabase
+      .from('scans')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Failed to fetch scan from Supabase:', error);
+      return NextResponse.json({ error: 'Scan results not found' }, { status: 404 });
+    }
+
+    // Map DB fields back to the frontend ScanReport interface format
+    const report = {
+      id: data.id,
+      url: data.url,
+      domain: data.domain,
+      timestamp: data.created_at,
+      compositeScore: data.composite_score,
+      citationRate: data.citation_rate,
+      citedCount: data.cited_count,
+      totalCount: data.total_count,
+      technicalChecks: data.technical_checks,
+      topFixes: data.top_fixes,
+      competitors: data.competitors
+    };
+
+    return NextResponse.json(report);
+  } catch (err: any) {
+    console.error('Error fetching results:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

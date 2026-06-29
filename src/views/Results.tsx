@@ -4,6 +4,7 @@ import './Results.css';
 
 interface ResultsProps {
   report: ScanReport;
+  description?: string;
   onRescan: () => void;
   onNavigateToPricing?: () => void;
 }
@@ -13,7 +14,7 @@ interface StreamedQuery {
   cited: boolean;
 }
 
-export default function Results({ report, onRescan, onNavigateToPricing }: ResultsProps) {
+export default function Results({ report, description, onRescan, onNavigateToPricing }: ResultsProps) {
   const [prompts, setPrompts] = useState<StreamedQuery[]>([]);
   const [technicalChecks, setTechnicalChecks] = useState<CheckResult[]>(report.technicalChecks || []);
   const [compositeScore, setCompositeScore] = useState<number>(report.compositeScore || 0);
@@ -21,6 +22,8 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
   const [citedCount, setCitedCount] = useState<number>(report.citedCount || 0);
   const [competitors, setCompetitors] = useState<CompetitorGap[]>(report.competitors || []);
   const [topFixes, setTopFixes] = useState<FixItem[]>(report.topFixes || []);
+  const [confidence, setConfidence] = useState<string>(report.confidence || 'high');
+  const [isBlocked, setIsBlocked] = useState<boolean>(report.isBlocked || false);
   const [isScanning, setIsScanning] = useState(!report.id);
   const [scanId, setScanId] = useState<string | null>(report.id || null);
   const [email, setEmail] = useState('');
@@ -43,11 +46,15 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
     setIsScanning(true);
     setScanError(null);
 
-    const eventSource = new EventSource(`/api/scan?url=${encodeURIComponent(report.url)}`);
+    const eventSourceUrl = `/api/scan?url=${encodeURIComponent(report.url)}${description ? `&description=${encodeURIComponent(description)}` : ''}`;
+    const eventSource = new EventSource(eventSourceUrl);
 
     eventSource.addEventListener('audit_complete', (e: any) => {
       const data = JSON.parse(e.data);
       setTechnicalChecks(data.technicalChecks);
+      if (data.isBlocked !== undefined) {
+        setIsBlocked(data.isBlocked);
+      }
     });
 
     eventSource.addEventListener('query_result', (e: any) => {
@@ -62,6 +69,8 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
       setCitedCount(data.citedCount);
       setCompetitors(data.competitors || []);
       setTopFixes(data.topFixes || []);
+      if (data.confidence) setConfidence(data.confidence);
+      if (data.isBlocked !== undefined) setIsBlocked(data.isBlocked);
       setScanId(data.id || null);
       setIsScanning(false);
       eventSource.close();
@@ -195,24 +204,42 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
           </div>
         </section>
 
+        {confidence === 'low' && !description && (
+          <div style={{ padding: '16px 24px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', color: '#334155' }}>We couldn't fully identify your business</h4>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>Add a description to improve accuracy for future scans.</p>
+            </div>
+            <button onClick={onRescan} style={{ padding: '8px 16px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#334155' }}>
+              Describe Business
+            </button>
+          </div>
+        )}
+
         {/* ZONE 1 - AI READINESS AUDIT */}
         <section className="zone-1">
           <p className="section-header-uppercase">
             Technical Readiness
           </p>
 
-          <ul className="audit-list">
-            {technicalChecks.length > 0 ? (
-              technicalChecks.map((check) => (
-                <li key={check.id} className="audit-item">
-                  {getStatusIcon(check.status)}
-                  <span className="audit-name">{check.name}</span>
-                </li>
-              ))
-            ) : (
-              <li className="audit-item" style={{ fontFamily: 'var(--font-mono)' }}>Loading technical checks...</li>
-            )}
-          </ul>
+          {isBlocked ? (
+            <div style={{ padding: '16px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '6px', color: '#b45309', marginBottom: '16px', fontSize: '0.95rem' }}>
+              <strong>Technical checks unavailable</strong> — this site uses bot protection (e.g. Cloudflare, Datadome).
+            </div>
+          ) : (
+            <ul className="audit-list">
+              {technicalChecks.length > 0 ? (
+                technicalChecks.map((check) => (
+                  <li key={check.id} className="audit-item">
+                    {getStatusIcon(check.status)}
+                    <span className="audit-name">{check.name}</span>
+                  </li>
+                ))
+              ) : (
+                <li className="audit-item" style={{ fontFamily: 'var(--font-mono)' }}>Loading technical checks...</li>
+              )}
+            </ul>
+          )}
         </section>
 
         {/* PRO MONITORING WAITLIST (Inline) */}
