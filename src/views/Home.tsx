@@ -57,26 +57,42 @@ export default function Home({ onStartScan }: HomeProps) {
           </p>
           
           <div className="search-box-container">
-            <form onSubmit={handleSubmit} className="search-form-layout">
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="search-form-layout">
+                <input
+                  type="text"
+                  className="url-search-input"
+                  placeholder="yourbusiness.com"
+                  value={inputUrl}
+                  onChange={(e) => setInputUrl(e.target.value)}
+                  autoFocus
+                />
+                <button type="submit" className="url-submit-btn">
+                  Check my score
+                </button>
+              </div>
               <input
                 type="text"
-                className="url-search-input"
-                placeholder="yourbusiness.com"
-                value={inputUrl}
-                onChange={(e) => setInputUrl(e.target.value)}
-                autoFocus
-              />
-              <input
-                type="text"
-                className="url-search-input description-input"
                 placeholder="What does your business do? (Optional)"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                style={{ marginTop: '12px', fontSize: '15px' }}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '24px',
+                  border: '1px solid rgba(15, 23, 42, 0.1)',
+                  background: 'rgba(255, 255, 255, 0.8)',
+                  fontSize: '0.95rem',
+                  color: '#0f172a',
+                  outline: 'none',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  fontFamily: 'inherit',
+                  transition: 'border-color 0.2s',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+                }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                onBlur={(e) => e.target.style.borderColor = 'rgba(15, 23, 42, 0.1)'}
               />
-              <button type="submit" className="url-submit-btn" style={{ marginTop: '12px' }}>
-                Check my score
-              </button>
             </form>
             {error && <p className="url-error-msg">{error}</p>}
           </div>
