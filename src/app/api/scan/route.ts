@@ -176,11 +176,11 @@ export async function GET(request: NextRequest) {
         ]);
 
         const html = fetchRes ? await fetchRes.text() : '';
-        const isBlocked = isBlockedPage(html);
+        const isBlocked = !html || (fetchRes && fetchRes.status === 403) || isBlockedPage(html);
 
         let technicalChecks = TECHNICAL_CHECKS_LIST.map(check => ({ ...check, status: 'pass' as 'pass' | 'warning' | 'fail' }));
         
-        if (isBlocked || !html) {
+        if (isBlocked) {
           // If blocked or fetch failed, set all technical checks to warning to avoid false negatives
           technicalChecks = technicalChecks.map(check => ({ ...check, status: 'warning' as 'pass' | 'warning' | 'fail' }));
         } else {
