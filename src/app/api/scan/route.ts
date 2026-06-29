@@ -50,7 +50,10 @@ async function extractBusinessDetails(domain: string, descriptionOverride?: stri
 Return ONLY a raw JSON object with the keys "businessName", "category", "city", and "confidence". Do not include markdown blocks or any other text.`;
 
     const result = await Promise.race([
-      model.generateContent(prompt),
+      model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' }
+      }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
     ]) as any;
 
@@ -232,11 +235,12 @@ export async function GET(request: NextRequest) {
           `Which ${category} in ${city} is open and highly rated?`
         ];
 
-        // Pick 15 library queries + 5 custom queries to total 20 prompts
+        // Pick 10 library queries + 4 custom queries to total 14 prompts
+        // This ensures the 1 extraction + 14 searches = 15 RPM limit on Gemini Free Tier!
         const allQueries = [
-          ...libraryQueries.slice(0, 15),
-          ...customQueries.slice(0, 5)
-        ].slice(0, 20);
+          ...libraryQueries.slice(0, 10),
+          ...customQueries.slice(0, 4)
+        ].slice(0, 14);
 
         // 4. Citation Checking with search-grounded Gemini Flash
         const searchModel = genAI.getGenerativeModel({
