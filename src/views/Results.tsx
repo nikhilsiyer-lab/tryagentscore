@@ -404,30 +404,29 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
             </p>
             
             <ul className="competitive-teaser-list" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', marginBottom: '24px', padding: 0, listStyle: 'none' }}>
-              <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ flex: 1 }}>competitor1.com</span>
-                <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>████████████░░░░</span>
-                <span style={{ width: '40px', textAlign: 'right' }}>12/20</span>
-              </li>
-              <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ flex: 1 }}>competitor2.com</span>
-                <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>████████░░░░░░░░</span>
-                <span style={{ width: '40px', textAlign: 'right' }}>8/20</span>
-              </li>
-              <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ flex: 1 }}>competitor3.com</span>
-                <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>█████░░░░░░░░░░░</span>
-                <span style={{ width: '40px', textAlign: 'right' }}>5/20</span>
-              </li>
-              <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', opacity: 0.5 }}>
-                <span style={{ flex: 1 }}>
-                  <button className="expand-fixes-teal-link" style={{ marginTop: 0 }} onClick={() => alert('Unlock competitive report to see more!')}>
-                    + 7 more
-                  </button>
-                </span>
-                <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>░░░░░░░░░░░░░░░░</span>
-                <span style={{ width: '40px', textAlign: 'right', filter: 'blur(4px)' }}>████</span>
-              </li>
+              {(competitors || []).slice(0, 3).map((comp, idx) => {
+                const filledBlocks = Math.round((comp.appearances / 20) * 16);
+                const emptyBlocks = Math.max(0, 16 - filledBlocks);
+                const progressBar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
+                return (
+                  <li key={comp.domain || idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ flex: 1 }}>{comp.domain}</span>
+                    <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>{progressBar}</span>
+                    <span style={{ width: '40px', textAlign: 'right' }}>{comp.appearances}/20</span>
+                  </li>
+                );
+              })}
+              {competitors.length > 3 && (
+                <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', opacity: 0.5 }}>
+                  <span style={{ flex: 1 }}>
+                    <button className="expand-fixes-teal-link" style={{ marginTop: 0 }} onClick={() => alert('Unlock competitive report to see more!')}>
+                      + {competitors.length - 3} more
+                    </button>
+                  </span>
+                  <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>░░░░░░░░░░░░░░░░</span>
+                  <span style={{ width: '40px', textAlign: 'right', filter: 'blur(4px)' }}>████</span>
+                </li>
+              )}
             </ul>
             
             <p className="section-desc" style={{ marginBottom: '24px' }}>
