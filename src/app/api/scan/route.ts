@@ -5,6 +5,9 @@ import { Groq } from 'groq-sdk';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
 
+export const maxDuration = 60; // Allow function to run up to 60s for Hobby tier
+export const dynamic = 'force-dynamic';
+
 // 14 Technical Factors
 const TECHNICAL_CHECKS_LIST = [
   { id: 'schema', name: 'Schema markup detected', description: 'JSON-LD schema gives AI tools explicit definitions.' },
@@ -48,7 +51,7 @@ Return ONLY a raw JSON object with the keys "businessName", "category", "city", 
 
     const result = await Promise.race([
       model.generateContent(prompt),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 4000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
     ]) as any;
 
     const text = result.response.text().trim();
@@ -77,7 +80,7 @@ async function generateNicheQueries(businessName: string, category: string, city
         ],
         response_format: { type: 'json_object' }
       }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 4000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
     ]) as any;
     
     const data = JSON.parse(response.choices[0]?.message?.content || '{}');
@@ -112,7 +115,7 @@ async function generateFixSuggestions(htmlContent: string) {
         ],
         response_format: { type: 'json_object' }
       }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 4000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
     ]) as any;
     
     const data = JSON.parse(response.choices[0]?.message?.content || '{}');
@@ -251,7 +254,7 @@ export async function GET(request: NextRequest) {
           try {
             const res = await Promise.race([
               searchModel.generateContent(queryText),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000))
             ]) as any;
             
             const textResponse = res.response.text() || '';
