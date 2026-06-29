@@ -197,11 +197,9 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
 
         {/* ZONE 1 - AI READINESS AUDIT */}
         <section className="zone-1">
-          <div className="section-divider">
-            <span className="line-prefix">──</span>
-            <span className="line-text">Technical Readiness</span>
-            <span className="line-suffix"></span>
-          </div>
+          <p className="section-header-uppercase">
+            Technical Readiness
+          </p>
 
           <ul className="audit-list">
             {technicalChecks.length > 0 ? (
@@ -252,11 +250,9 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
 
         {/* ZONE 2 - CITATION SCAN */}
         <section className="zone-2">
-          <div className="section-divider">
-            <span className="line-prefix">──</span>
-            <span className="line-text">AI Citation Test</span>
-            <span className="line-suffix"></span>
-          </div>
+          <p className="section-header-uppercase">
+            AI Citation Test
+          </p>
 
           {isScanning ? (
             <div className="streaming-container">
@@ -278,9 +274,15 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
           ) : (
             <div className="citation-results animate-slide-up">
               {citedCount === 0 ? (
-                <p className="citation-summary" style={{ fontWeight: 'normal', lineHeight: '1.6' }}>
-                  AI tools did not cite your business in any of the 20 test searches. The most common reason is insufficient crawlable content — see your action plan below.
-                </p>
+                <div className="citation-callout-card">
+                  <p className="citation-callout-title">
+                    Not cited in any of 20 AI searches
+                  </p>
+                  <p className="citation-callout-desc">
+                    The most common cause is insufficient crawlable content. 
+                    Your action plan below addresses this directly.
+                  </p>
+                </div>
               ) : (
                 <>
                   <p className="citation-summary">Results: cited in {citedCount} of 20 searches</p>
@@ -306,22 +308,28 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
         {/* ZONE 3 - COMPETITOR GAP */}
         {!isScanning && (
           <section className="zone-3 animate-slide-up">
-            <div className="section-divider">
-              <span className="line-prefix">──</span>
-              <span className="line-text">Who AI is recommending instead</span>
-              <span className="line-suffix"></span>
-            </div>
+            <p className="section-header-uppercase">
+              Who AI is recommending instead
+            </p>
             
             <p className="section-desc">These businesses appeared in searches where<br/>you were not cited:</p>
             
-            <ul className="competitor-list">
-              {(competitors || []).map(comp => (
-                <li key={comp.domain} className="competitor-item">
-                  <span className="comp-domain">{comp.domain}</span>
-                  <span className="comp-stats">appeared in {comp.appearances} of 20 searches</span>
-                </li>
+            <div className="competitors-container">
+              {competitors.map((comp, i) => (
+                <div key={i} className="competitor-row">
+                  <span className="competitor-domain-text">{comp.domain}</span>
+                  <div className="competitor-stat-wrapper">
+                    <div className="competitor-progress-bg">
+                      <div 
+                        className="competitor-progress-fill" 
+                        style={{ width: `${(comp.appearances / 20) * 100}%` }}
+                      />
+                    </div>
+                    <span className="competitor-count-text">{comp.appearances}/20</span>
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
             <div className="add-competitor">
               <span className="add-icon">+</span>
               <input type="text" placeholder="Add a competitor to track [enter URL]" />
@@ -332,55 +340,64 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
         {/* ZONE 4 - FIX LIST */}
         {!isScanning && (
           <section className="zone-4 animate-slide-up">
-            <div className="section-divider">
-              <span className="line-prefix">──</span>
-              <span className="line-text">Your action plan</span>
-              <span className="line-suffix"></span>
-            </div>
+            <p className="section-header-uppercase">
+              Your action plan
+            </p>
             
-            <p className="section-desc">These three changes will have the most impact:</p>
+            <p className="section-desc" style={{ marginBottom: '20px' }}>These three changes will have the most impact:</p>
 
             <div className="fix-list">
               {(topFixes || []).slice(0, 3).map((fix, idx) => (
-                <div key={fix.id} className="fix-card">
-                  <div className="fix-num">{idx + 1}</div>
-                  <div className="fix-content">
+                <div key={fix.id} className="action-plan-item">
+                  <span className="action-plan-step-num">
+                    {idx + 1}
+                  </span>
+                  <div className="action-plan-content">
                     <h4>{fix.title}</h4>
                     <p>{fix.description}</p>
-                    <div className="fix-footer">
-                      <button className="fix-action-link">
-                        [{fix.fixAction === 'llms' && 'Download your llms.txt →'}
+                    <div style={{ display: 'flex', alignItems: 'center', marginTop: '4px' }}>
+                      <a
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          alert('Action details and downloads coming soon with Pro monitoring!');
+                        }}
+                        className="action-plan-download-btn"
+                      >
+                        {fix.fixAction === 'llms' && 'Download llms.txt →'}
                         {fix.fixAction === 'robots' && 'Download updated robots.txt →'}
                         {fix.fixAction === 'schema' && 'See how to add this →'}
-                        {fix.fixAction === 'link' && 'Read guide →'}]
-                      </button>
-                      <span className="fix-time">Takes {fix.timeEstimate.replace('Takes ', '')}</span>
+                        {fix.fixAction === 'link' && 'Read guide →'}
+                      </a>
+                      <span className="action-plan-time-label">
+                        Takes {fix.timeEstimate.replace('Takes ', '')}
+                      </span>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
             
-            <div className="section-divider subtle-divider">
-              <span className="line-prefix">──</span>
-              <span className="line-text">Further improvements</span>
-              <span className="line-suffix"></span>
-            </div>
-            
-            <button className="expand-fixes-link" onClick={() => setExpandedFixes(!expandedFixes)}>
-              [+ {topFixes.length - 3} more items] (click to expand)
-            </button>
+            {topFixes.length > 3 && (
+              <>
+                <p className="section-header-uppercase" style={{ marginTop: '32px' }}>
+                  Further improvements
+                </p>
+                
+                <button className="expand-fixes-teal-link" onClick={() => setExpandedFixes(!expandedFixes)}>
+                  + {topFixes.length - 3} more
+                </button>
+              </>
+            )}
           </section>
         )}
 
         {/* ZONE 5 - COMPETITIVE REPORT TEASER (GROWTH UPGRADE) */}
         {!isScanning && (
           <section className="zone-5 animate-slide-up">
-            <div className="section-divider">
-              <span className="line-prefix">──</span>
-              <span className="line-text">See how you compare across AI tools</span>
-              <span className="line-suffix"></span>
-            </div>
+            <p className="section-header-uppercase">
+              See how you compare across AI tools
+            </p>
             
             <p className="section-desc">
               These businesses are being cited in searches where you are not:
@@ -403,7 +420,11 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
                 <span style={{ width: '40px', textAlign: 'right' }}>5/20</span>
               </li>
               <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', opacity: 0.5 }}>
-                <span style={{ flex: 1 }}>[+ 7 more]</span>
+                <span style={{ flex: 1 }}>
+                  <button className="expand-fixes-teal-link" style={{ marginTop: 0 }} onClick={() => alert('Unlock competitive report to see more!')}>
+                    + 7 more
+                  </button>
+                </span>
                 <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>░░░░░░░░░░░░░░░░</span>
                 <span style={{ width: '40px', textAlign: 'right', filter: 'blur(4px)' }}>████</span>
               </li>
@@ -422,8 +443,8 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
                 </button>
                 <span style={{ fontSize: '0.85rem', color: '#64748b' }}>19 EUR/month · Cancel anytime</span>
               </div>
-              <button className="btn-maybe-later" onClick={onRescan} style={{ marginTop: '16px' }}>
-                [Maybe later]
+              <button className="maybe-later-btn" onClick={onRescan}>
+                Maybe later
               </button>
             </div>
           </section>
