@@ -35,7 +35,7 @@ function cleanHtmlText(html: string): string {
 
 async function extractBusinessDetails(html: string, domain: string) {
   const cleanText = cleanHtmlText(html).substring(0, 4000);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
   
   const prompt = `Analyze this webpage content for the domain ${domain} and extract:
 1. The official Business Name.
@@ -185,9 +185,8 @@ export async function GET(request: NextRequest) {
         ].slice(0, 20);
 
         // 4. Citation Checking with search-grounded Gemini Flash
-        const betaGenAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '', { apiVersion: 'v1beta' });
-        const searchModel = betaGenAI.getGenerativeModel({
-          model: 'gemini-1.5-flash',
+        const searchModel = genAI.getGenerativeModel({
+          model: 'gemini-2.0-flash',
           tools: [{ googleSearch: {} }]
         });
 
