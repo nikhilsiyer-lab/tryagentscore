@@ -24,9 +24,9 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
   const [isScanning, setIsScanning] = useState(!report.id);
   const [scanId, setScanId] = useState<string | null>(report.id || null);
   const [email, setEmail] = useState('');
-  const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [expandedFixes, setExpandedFixes] = useState(false);
   const [origin, setOrigin] = useState<string>('');
+  const [scanError, setScanError] = useState<string | null>(null);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -41,6 +41,7 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
 
     setPrompts([]);
     setIsScanning(true);
+    setScanError(null);
 
     const eventSource = new EventSource(`/api/scan?url=${encodeURIComponent(report.url)}`);
 
@@ -66,7 +67,16 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
       eventSource.close();
     });
 
-    eventSource.addEventListener('error', () => {
+    // Custom error event from backend
+    eventSource.addEventListener('error', (e: any) => {
+      let errMsg = 'The scan was interrupted or rate-limited. Please try again.';
+      try {
+        if (e.data) {
+          const data = JSON.parse(e.data);
+          errMsg = data.message || errMsg;
+        }
+      } catch (_) {}
+      setScanError(errMsg);
       setIsScanning(false);
       eventSource.close();
     });
@@ -116,6 +126,26 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
       </div>
 
       <div className="results-content-wrapper">
+        {scanError && (
+          <div style={{
+            background: '#fee2e2',
+            border: '1px solid #fca5a5',
+            color: '#991b1b',
+            padding: '16px',
+            borderRadius: '8px',
+            marginBottom: '24px',
+            fontSize: '0.95rem',
+            lineHeight: '1.5',
+            fontFamily: 'var(--font-sans)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ fontSize: '1.2rem' }}>⚠</span>
+            <span>{scanError}</span>
+          </div>
+        )}
+
         {/* ZONE 0 - HERO SCORE HEADER */}
         <section className="zone-0">
           <div className="zone-0-top">
