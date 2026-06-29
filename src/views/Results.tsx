@@ -13,7 +13,7 @@ interface StreamedQuery {
   cited: boolean;
 }
 
-export default function Results({ report, onRescan }: ResultsProps) {
+export default function Results({ report, onRescan, onNavigateToPricing }: ResultsProps) {
   const [prompts, setPrompts] = useState<StreamedQuery[]>([]);
   const [technicalChecks, setTechnicalChecks] = useState<CheckResult[]>([]);
   const [compositeScore, setCompositeScore] = useState<number>(0);
