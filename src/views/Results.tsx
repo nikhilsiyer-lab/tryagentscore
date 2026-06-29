@@ -20,6 +20,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
   const [compositeScore, setCompositeScore] = useState<number>(report.compositeScore || 0);
   const [citationRate, setCitationRate] = useState<number>(report.citationRate || 0);
   const [citedCount, setCitedCount] = useState<number>(report.citedCount || 0);
+  const [totalCount, setTotalCount] = useState<number>(report.totalCount || 14);
   const [competitors, setCompetitors] = useState<CompetitorGap[]>(report.competitors || []);
   const [topFixes, setTopFixes] = useState<FixItem[]>(report.topFixes || []);
   const [confidence, setConfidence] = useState<string>(report.confidence || 'high');
@@ -67,6 +68,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
       setCompositeScore(data.compositeScore);
       setCitationRate(data.citationRate);
       setCitedCount(data.citedCount);
+      setTotalCount(data.totalCount || 14);
       setCompetitors(data.competitors || []);
       setTopFixes(data.topFixes || []);
       if (data.confidence) setConfidence(data.confidence);
@@ -168,12 +170,12 @@ export default function Results({ report, description, onRescan, onNavigateToPri
           {citedCount === 0 && !isScanning ? (
             <p className="hero-statement">
               AI search tools did not mention your business in any of our<br />
-              {report.totalCount || 20} test searches. That is common for new sites — and it is fixable.
+              {totalCount} test searches. That is common for new sites — and it is fixable.
             </p>
           ) : (
             <p className="hero-statement">
               In our test, AI search tools mentioned your business<br />
-              in {isScanning ? '...' : citedCount} out of {report.totalCount || 20} searches. Here is your full report.
+              in {isScanning ? '...' : citedCount} out of {totalCount} searches. Here is your full report.
             </p>
           )}
 
@@ -184,7 +186,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
                 {isScanning ? '...' : `${compositeScore}/100`}
               </div>
               <div className="score-bar-bg">
-                <div className={`score-bar-fill ${scoreClass}`} style={{ width: `${isScanning ? (prompts.length/(report.totalCount || 20))*100 : compositeScore}%` }}></div>
+                <div className={`score-bar-fill ${scoreClass}`} style={{ width: `${isScanning ? (prompts.length/totalCount)*100 : compositeScore}%` }}></div>
               </div>
             </div>
             {!isScanning && (
@@ -295,7 +297,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
                 ))}
               </div>
               <div className="streaming-footer">
-                <span>scanning {prompts.length} of {report.totalCount || 20} ▌</span>
+                <span>scanning {prompts.length} of {totalCount} ▌</span>
               </div>
             </div>
           ) : (
@@ -303,7 +305,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
               {citedCount === 0 ? (
                 <div className="citation-callout-card">
                   <p className="citation-callout-title">
-                    Not cited in any of {report.totalCount || 20} AI searches
+                    Not cited in any of {totalCount} AI searches
                   </p>
                   <p className="citation-callout-desc">
                     The most common cause is insufficient crawlable content. 
@@ -312,7 +314,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
                 </div>
               ) : (
                 <>
-                  <p className="citation-summary">Results: cited in {citedCount} of {report.totalCount || 20} searches</p>
+                  <p className="citation-summary">Results: cited in {citedCount} of {totalCount} searches</p>
                   <ul className="intent-list">
                     {(report.intentCategories || []).map(cat => (
                       <li key={cat.name} className="intent-item">
@@ -349,10 +351,10 @@ export default function Results({ report, description, onRescan, onNavigateToPri
                     <div className="competitor-progress-bg">
                       <div 
                         className="competitor-progress-fill" 
-                        style={{ width: `${(comp.appearances / (report.totalCount || 20)) * 100}%` }}
+                        style={{ width: `${(comp.appearances / totalCount) * 100}%` }}
                       />
                     </div>
-                    <span className="competitor-count-text">{comp.appearances}/{report.totalCount || 20}</span>
+                    <span className="competitor-count-text">{comp.appearances}/{totalCount}</span>
                   </div>
                 </div>
               ))}
@@ -432,14 +434,14 @@ export default function Results({ report, description, onRescan, onNavigateToPri
             
             <ul className="competitive-teaser-list" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', marginBottom: '24px', padding: 0, listStyle: 'none' }}>
               {(competitors || []).slice(0, 3).map((comp, idx) => {
-                const filledBlocks = Math.round((comp.appearances / (report.totalCount || 20)) * 16);
+                const filledBlocks = Math.round((comp.appearances / totalCount) * 16);
                 const emptyBlocks = Math.max(0, 16 - filledBlocks);
                 const progressBar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
                 return (
                   <li key={comp.domain || idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <span style={{ flex: 1 }}>{comp.domain}</span>
                     <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>{progressBar}</span>
-                    <span style={{ width: '40px', textAlign: 'right' }}>{comp.appearances}/{report.totalCount || 20}</span>
+                    <span style={{ width: '40px', textAlign: 'right' }}>{comp.appearances}/{totalCount}</span>
                   </li>
                 );
               })}
