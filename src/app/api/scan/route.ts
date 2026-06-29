@@ -193,41 +193,45 @@ export async function GET(request: NextRequest) {
         let citedCount = 0;
         const competitorsMap = new Map<string, number>();
 
-        // Execute in batches to respect rate limits and keep SSE lively
-        for (let i = 0; i < allQueries.length; i++) {
-          const queryText = allQueries[i];
+        // Execute all queries in parallel to fit within Vercel's Hobby execution timeout limit (10s)
+        const queryPromises = allQueries.map(async (queryText, i) => {
           let cited = false;
-
+          let webSources: string[] = [];
           try {
             const res = await searchModel.generateContent(queryText);
             const textResponse = res.response.text() || '';
             cited = textResponse.toLowerCase().includes(businessName.toLowerCase()) || textResponse.toLowerCase().includes(domain.toLowerCase());
 
-            // Extract competitors mentioned in search grounding chunks
             const groundingMetadata = (res.response as any).candidates?.[0]?.groundingMetadata;
-            const webSources = groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web?.uri).filter(Boolean) || [];
-
-            webSources.forEach((urlStr: string) => {
-              try {
-                let compDomain = urlStr.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-                if (compDomain !== domain && compDomain !== 'google.com' && compDomain !== 'youtube.com') {
-                  competitorsMap.set(compDomain, (competitorsMap.get(compDomain) || 0) + 1);
-                }
-              } catch (_) {}
-            });
+            webSources = groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web?.uri).filter(Boolean) || [];
           } catch (e) {
             console.error(`Error querying query ${i}:`, e);
           }
+          return { index: i + 1, query: queryText, cited, webSources };
+        });
 
-          if (cited) citedCount++;
+        const queryResults = await Promise.all(queryPromises);
 
+        // Process and stream the results
+        queryResults.forEach((r) => {
+          if (r.cited) citedCount++;
+          
           sendEvent('query_result', {
-            index: i + 1,
+            index: r.index,
             total: allQueries.length,
-            query: queryText,
-            cited
+            query: r.query,
+            cited: r.cited
           });
-        }
+
+          r.webSources.forEach((urlStr: string) => {
+            try {
+              let compDomain = urlStr.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+              if (compDomain !== domain && compDomain !== 'google.com' && compDomain !== 'youtube.com') {
+                competitorsMap.set(compDomain, (competitorsMap.get(compDomain) || 0) + 1);
+              }
+            } catch (_) {}
+          });
+        });
 
         // 5. Generate Custom Fix suggestions based on content using Groq
         const generatedFixes = await generateFixSuggestions(html);
