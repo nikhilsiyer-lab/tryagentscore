@@ -34,7 +34,7 @@ function cleanHtmlText(html: string): string {
 }
 
 function isBlockedPage(html: string): boolean {
-  const signals = ['captcha', 'datadome', 'perimeterx', 'cf-challenge', 'access denied'];
+  const signals = ['captcha', 'datadome', 'perimeterx', 'cf-challenge', 'access denied', 'awswaf', 'challengeerror', 'reportchallengeerror', 'verify you are human'];
   return signals.some(s => html.toLowerCase().includes(s));
 }
 

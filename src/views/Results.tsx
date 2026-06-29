@@ -23,7 +23,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
   const [competitors, setCompetitors] = useState<CompetitorGap[]>(report.competitors || []);
   const [topFixes, setTopFixes] = useState<FixItem[]>(report.topFixes || []);
   const [confidence, setConfidence] = useState<string>(report.confidence || 'high');
-  const [isBlocked, setIsBlocked] = useState<boolean>(report.isBlocked || false);
+  const [isBlocked, setIsBlocked] = useState<boolean>(report.isBlocked || (report.technicalChecks?.length > 0 && report.technicalChecks.every(c => c.status === 'warning')));
   const [isScanning, setIsScanning] = useState(!report.id);
   const [scanId, setScanId] = useState<string | null>(report.id || null);
   const [email, setEmail] = useState('');
