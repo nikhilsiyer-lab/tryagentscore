@@ -24,6 +24,11 @@ export default function Results({ report, onRescan }: ResultsProps) {
   const [email, setEmail] = useState('');
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [expandedFixes, setExpandedFixes] = useState(false);
+  const [origin, setOrigin] = useState<string>('');
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   // Hook up SSE scan pipeline
   useEffect(() => {
@@ -83,14 +88,14 @@ export default function Results({ report, onRescan }: ResultsProps) {
       <div className="persistent-url-bar">
         <span className="url-string">
           {scanId 
-            ? `${window.location.origin}/results/${scanId}` 
-            : `${window.location.origin}/results/saving...`}
+            ? `${origin || 'https://tryagentscore.com'}/results/${scanId}` 
+            : `${origin || 'https://tryagentscore.com'}/results/saving...`}
         </span>
         <button 
           className="copy-link-btn" 
           onClick={() => {
             if (scanId) {
-              navigator.clipboard.writeText(`${window.location.origin}/results/${scanId}`);
+              navigator.clipboard.writeText(`${origin || window.location.origin}/results/${scanId}`);
               alert('Link copied to clipboard!');
             } else {
               alert('Wait a moment for the scan report to finish saving...');

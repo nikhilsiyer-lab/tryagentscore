@@ -6,7 +6,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // We only initialize if keys are present to avoid crash on build
-const supabase = supabaseUrl && supabaseAnonKey 
+const supabase = supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
 
