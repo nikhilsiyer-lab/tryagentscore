@@ -19,6 +19,8 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
   const [compositeScore, setCompositeScore] = useState<number>(report.compositeScore || 0);
   const [citationRate, setCitationRate] = useState<number>(report.citationRate || 0);
   const [citedCount, setCitedCount] = useState<number>(report.citedCount || 0);
+  const [competitors, setCompetitors] = useState<CompetitorGap[]>(report.competitors || []);
+  const [topFixes, setTopFixes] = useState<FixItem[]>(report.topFixes || []);
   const [isScanning, setIsScanning] = useState(!report.id);
   const [scanId, setScanId] = useState<string | null>(report.id || null);
   const [email, setEmail] = useState('');
@@ -57,6 +59,8 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
       setCompositeScore(data.compositeScore);
       setCitationRate(data.citationRate);
       setCitedCount(data.citedCount);
+      setCompetitors(data.competitors || []);
+      setTopFixes(data.topFixes || []);
       setScanId(data.id || null);
       setIsScanning(false);
       eventSource.close();
@@ -281,7 +285,7 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
             <p className="section-desc">These businesses appeared in searches where<br/>you were not cited:</p>
             
             <ul className="competitor-list">
-              {(report.competitors || []).map(comp => (
+              {(competitors || []).map(comp => (
                 <li key={comp.domain} className="competitor-item">
                   <span className="comp-domain">{comp.domain}</span>
                   <span className="comp-stats">appeared in {comp.appearances} of 20 searches</span>
@@ -307,7 +311,7 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
             <p className="section-desc">These three changes will have the most impact:</p>
 
             <div className="fix-list">
-              {(report.topFixes || []).slice(0, 3).map((fix, idx) => (
+              {(topFixes || []).slice(0, 3).map((fix, idx) => (
                 <div key={fix.id} className="fix-card">
                   <div className="fix-num">{idx + 1}</div>
                   <div className="fix-content">
@@ -334,7 +338,7 @@ export default function Results({ report, onRescan, onNavigateToPricing }: Resul
             </div>
             
             <button className="expand-fixes-link" onClick={() => setExpandedFixes(!expandedFixes)}>
-              [+ {report.topFixes.length - 3} more items] (click to expand)
+              [+ {topFixes.length - 3} more items] (click to expand)
             </button>
           </section>
         )}
