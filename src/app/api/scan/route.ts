@@ -300,6 +300,19 @@ export async function GET(request: NextRequest) {
           console.error('Failed to save scan snapshot to Supabase:', e);
         }
 
+        // Calculate category breakdowns
+        const informational = queryResults.slice(0, 5).filter(r => r.cited).length;
+        const local = queryResults.slice(5, 10).filter(r => r.cited).length;
+        const comparison = queryResults.slice(10, 15).filter(r => r.cited).length;
+        const direct = queryResults.slice(15, 20).filter(r => r.cited).length;
+
+        const intentCategories = [
+          { name: 'Informational queries', cited: informational, total: 5 },
+          { name: 'Local intent queries', cited: local, total: 5 },
+          { name: 'Comparison queries', cited: comparison, total: 5 },
+          { name: 'Direct queries', cited: direct, total: 5 }
+        ];
+
         const report = {
           id: scanId,
           domain,
@@ -309,7 +322,8 @@ export async function GET(request: NextRequest) {
           citedCount,
           totalCount: allQueries.length,
           competitors,
-          topFixes
+          topFixes,
+          intentCategories
         };
 
         sendEvent('scan_complete', report);

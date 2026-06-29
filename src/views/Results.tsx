@@ -246,7 +246,7 @@ export default function Results({ report, onRescan }: ResultsProps) {
                 <>
                   <p className="citation-summary">Results: cited in {citedCount} of 20 searches</p>
                   <ul className="intent-list">
-                    {report.intentCategories.map(cat => (
+                    {(report.intentCategories || []).map(cat => (
                       <li key={cat.name} className="intent-item">
                         <span className="intent-name">{cat.name}</span>
                         <div className="intent-bars">
@@ -276,7 +276,7 @@ export default function Results({ report, onRescan }: ResultsProps) {
             <p className="section-desc">These businesses appeared in searches where<br/>you were not cited:</p>
             
             <ul className="competitor-list">
-              {report.competitors.map(comp => (
+              {(report.competitors || []).map(comp => (
                 <li key={comp.domain} className="competitor-item">
                   <span className="comp-domain">{comp.domain}</span>
                   <span className="comp-stats">appeared in {comp.appearances} of 20 searches</span>
@@ -302,7 +302,7 @@ export default function Results({ report, onRescan }: ResultsProps) {
             <p className="section-desc">These three changes will have the most impact:</p>
 
             <div className="fix-list">
-              {report.topFixes.slice(0, 3).map((fix, idx) => (
+              {(report.topFixes || []).slice(0, 3).map((fix, idx) => (
                 <div key={fix.id} className="fix-card">
                   <div className="fix-num">{idx + 1}</div>
                   <div className="fix-content">
