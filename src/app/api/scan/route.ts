@@ -42,7 +42,13 @@ function isBlockedPage(html: string): boolean {
 }
 
 async function extractBusinessDetails(domain: string, descriptionOverride?: string) {
-  const prompt = `What business is located at the domain "${domain}"?${ descriptionOverride ? ` Additional context: ${descriptionOverride}.` : '' } Return ONLY a JSON object with these exact keys: "businessName" (the real brand name), "category" (the specific service/product category), "city" (the primary market or country if global), "confidence" ("high" if you know this business well, "low" if not). No markdown, no extra text.`;
+  const prompt = `What business is located at the domain "${domain}"?${ descriptionOverride ? ` Additional context: ${descriptionOverride}.` : '' } 
+Return ONLY a JSON object with these exact keys:
+1. "businessName" (the real brand name)
+2. "category" (the most common, singular local business category noun in English, e.g., "Law Firm", "Physiotherapist", "Hotel", "Restaurant", "Dentist" — do NOT use double categories like "Law Firm & Tax Advisors" or ampersands)
+3. "city" (the primary city where their headquarters/main office is located. If it is an online-only platform, use "Global")
+4. "confidence" ("high" if you know this business well, "low" if not).
+No markdown, no extra text.`;
 
   // Try Gemini first
   try {
