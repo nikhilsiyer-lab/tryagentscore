@@ -9,9 +9,28 @@ export async function GET(request: NextRequest) {
 
   // 1. Check env vars exist (don't expose values)
   results.env = {
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY ? `set (${process.env.GEMINI_API_KEY.length} chars, starts: ${process.env.GEMINI_API_KEY.substring(0, 5)})` : 'MISSING',
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY ? `set (${process.env.GEMINI_API_KEY.length} chars, starts: ${process.env.GEMINI_API_KEY.substring(0, 8)})` : 'MISSING',
     GROQ_API_KEY: process.env.GROQ_API_KEY ? `set (${process.env.GROQ_API_KEY.length} chars, starts: ${process.env.GROQ_API_KEY.substring(0, 5)})` : 'MISSING',
   };
+
+  // 1b. List available Gemini models to find which ones work with this key
+  try {
+    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const listJson = await listRes.json();
+    if (listJson.models) {
+      // Only show flash/pro models that support generateContent
+      results.available_models = listJson.models
+        .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m: any) => m.name)
+        .filter((n: string) => n.includes('flash') || n.includes('pro'));
+    } else {
+      results.available_models = 'FAIL: ' + JSON.stringify(listJson).substring(0, 200);
+    }
+  } catch(e: any) {
+    results.available_models = 'FAIL: ' + e.message;
+  }
 
   // 2. Test Gemini basic (no grounding)
   try {
