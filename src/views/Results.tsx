@@ -325,24 +325,41 @@ export default function Results({ report, description, onRescan, onNavigateToPri
               Who AI is recommending instead
             </p>
             
-            <p className="section-desc">These businesses appeared in searches where<br/>you were not cited:</p>
-            
-            <div className="competitors-container">
-              {competitors.map((comp, i) => (
-                <div key={i} className="competitor-row">
-                  <span className="competitor-domain-text">{comp.domain}</span>
-                  <div className="competitor-stat-wrapper">
-                    <div className="competitor-progress-bg">
-                      <div 
-                        className="competitor-progress-fill" 
-                        style={{ width: `${(comp.appearances / totalCount) * 100}%` }}
-                      />
+            {citedCount === totalCount || competitors.length === 0 ? (
+              <div style={{
+                background: '#f0fdfa',
+                border: '1px solid #ccfbf1',
+                padding: '16px 20px',
+                borderRadius: '8px',
+                color: '#0f766e',
+                fontSize: '0.95rem',
+                lineHeight: '1.5',
+                marginTop: '12px',
+                fontFamily: 'var(--font-sans)'
+              }}>
+                🎉 Great news — you appeared in every AI search we tested. No competitors displaced you in these queries.
+              </div>
+            ) : (
+              <>
+                <p className="section-desc">These businesses appeared in searches where<br/>you were not cited:</p>
+                <div className="competitors-container">
+                  {competitors.map((comp, i) => (
+                    <div key={i} className="competitor-row">
+                      <span className="competitor-domain-text">{comp.domain}</span>
+                      <div className="competitor-stat-wrapper">
+                        <div className="competitor-progress-bg">
+                          <div 
+                            className="competitor-progress-fill" 
+                            style={{ width: `${(comp.appearances / totalCount) * 100}%` }}
+                          />
+                        </div>
+                        <span className="competitor-count-text">{comp.appearances}/{totalCount}</span>
+                      </div>
                     </div>
-                    <span className="competitor-count-text">{comp.appearances}/{totalCount}</span>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </section>
         )}
 
