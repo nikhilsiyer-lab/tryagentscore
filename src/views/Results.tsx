@@ -24,6 +24,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
   const [competitors, setCompetitors] = useState<CompetitorGap[]>(report.competitors || []);
   const [topFixes, setTopFixes] = useState<FixItem[]>(report.topFixes || []);
   const [confidence, setConfidence] = useState<string>(report.confidence || 'high');
+  const [intentCategories, setIntentCategories] = useState<any[]>(report.intentCategories || []);
   const [isBlocked, setIsBlocked] = useState<boolean>(report.isBlocked || (report.technicalChecks?.length > 0 && report.technicalChecks.every(c => c.status === 'warning')));
   const [isScanning, setIsScanning] = useState(!report.id);
   const [scanId, setScanId] = useState<string | null>(report.id || null);
@@ -71,6 +72,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
       setTotalCount(data.totalCount || 14);
       setCompetitors(data.competitors || []);
       setTopFixes(data.topFixes || []);
+      if (data.intentCategories) setIntentCategories(data.intentCategories);
       if (data.confidence) setConfidence(data.confidence);
       if (data.isBlocked !== undefined) setIsBlocked(data.isBlocked);
       setScanId(data.id || null);
@@ -300,7 +302,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
                 <>
                   <p className="citation-summary">Results: cited in {citedCount} of {totalCount} searches</p>
                   <ul className="intent-list">
-                    {(report.intentCategories || []).map(cat => (
+                    {(intentCategories || []).map(cat => (
                       <li key={cat.name} className="intent-item">
                         <span className="intent-name">{cat.name}</span>
                         <div className="intent-bars">

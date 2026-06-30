@@ -399,17 +399,18 @@ export async function GET(request: NextRequest) {
           console.error('Failed to save scan snapshot to Supabase:', e);
         }
 
-        // Calculate category breakdowns
-        const informational = queryResults.slice(0, 5).filter(r => r.cited).length;
-        const local = queryResults.slice(5, 10).filter(r => r.cited).length;
-        const comparison = queryResults.slice(10, 15).filter(r => r.cited).length;
-        const direct = queryResults.slice(15, 20).filter(r => r.cited).length;
+        // Calculate category breakdowns from the 14 actual query results
+        // 0-3 (4 informational), 4-7 (4 local), 8-10 (3 comparison), 11-13 (3 direct)
+        const informational = queryResults.slice(0, 4).filter(r => r.cited).length;
+        const local = queryResults.slice(4, 8).filter(r => r.cited).length;
+        const comparison = queryResults.slice(8, 11).filter(r => r.cited).length;
+        const direct = queryResults.slice(11, 14).filter(r => r.cited).length;
 
         const intentCategories = [
-          { name: 'Informational queries', cited: informational, total: 5 },
-          { name: 'Local intent queries', cited: local, total: 5 },
-          { name: 'Comparison queries', cited: comparison, total: 5 },
-          { name: 'Direct queries', cited: direct, total: 5 }
+          { name: 'Informational queries', cited: informational, total: 4 },
+          { name: 'Local intent queries', cited: local, total: 4 },
+          { name: 'Comparison queries', cited: comparison, total: 3 },
+          { name: 'Direct queries', cited: direct, total: 3 }
         ];
 
         const report = {
