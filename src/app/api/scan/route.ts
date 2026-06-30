@@ -418,16 +418,16 @@ export async function GET(request: NextRequest) {
 
         // Calculate category breakdowns from the 16 actual query results
         // 0-3 (4 informational), 4-7 (4 local), 8-11 (4 comparison), 12-15 (4 direct)
-        const informational = queryResults.slice(0, 4).filter(r => r.cited).length;
-        const local = queryResults.slice(4, 8).filter(r => r.cited).length;
-        const comparison = queryResults.slice(8, 12).filter(r => r.cited).length;
-        const direct = queryResults.slice(12, 16).filter(r => r.cited).length;
+        const infoCount = queryResults.slice(0, 4).filter(r => r.cited).length;
+        const localCount = queryResults.slice(4, 8).filter(r => r.cited).length;
+        const compCount = queryResults.slice(8, 12).filter(r => r.cited).length;
+        const directCount = queryResults.slice(12, 16).filter(r => r.cited).length;
 
         const intentCategories = [
-          { name: 'Informational queries', cited: informational, total: 4 },
-          { name: 'Local intent queries', cited: local, total: 4 },
-          { name: 'Comparison queries', cited: comparison, total: 4 },
-          { name: 'Direct queries', cited: direct, total: 4 }
+          { name: 'Informational queries', cited: infoCount, total: 4 },
+          { name: 'Local intent queries', cited: localCount, total: 4 },
+          { name: 'Comparison queries', cited: compCount, total: 4 },
+          { name: 'Direct queries', cited: directCount, total: 4 }
         ];
 
         const report = {
