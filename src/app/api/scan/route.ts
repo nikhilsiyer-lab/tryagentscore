@@ -46,7 +46,7 @@ async function extractBusinessDetails(domain: string, descriptionOverride?: stri
 
   // Try Gemini first
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const result = await Promise.race([
       model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -71,7 +71,7 @@ async function extractBusinessDetails(domain: string, descriptionOverride?: stri
   try {
     const response = await Promise.race([
       groq.chat.completions.create({
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         messages: [
           { role: 'system', content: 'You are a business lookup tool. Identify any business from its domain name. Always respond with valid JSON only.' },
           { role: 'user', content: prompt }
@@ -99,7 +99,7 @@ async function generateNicheQueries(businessName: string, category: string, city
   try {
     const response = await Promise.race([
       groq.chat.completions.create({
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         messages: [
           {
             role: 'system',
@@ -134,7 +134,7 @@ async function generateFixSuggestions(htmlContent: string) {
     const cleanText = cleanHtmlText(htmlContent).substring(0, 3000);
     const response = await Promise.race([
       groq.chat.completions.create({
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         messages: [
           {
             role: 'system',
@@ -276,7 +276,7 @@ export async function GET(request: NextRequest) {
 
         // 4. Citation Checking with search-grounded Gemini Flash
         const searchModel = genAI.getGenerativeModel({
-          model: 'gemini-2.0-flash',
+          model: 'gemini-1.5-flash',
           tools: [{ googleSearch: {} }]
         });
 

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   // 2. Test Gemini basic (no grounding)
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const result = await Promise.race([
       model.generateContent('Reply with just the word: WORKING'),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout after 8s')), 8000))
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
     const searchModel = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       tools: [{ googleSearch: {} }]
     });
     const res = await Promise.race([
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
     const response = await Promise.race([
       groq.chat.completions.create({
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         messages: [{ role: 'user', content: 'What is booking.com? One sentence.' }]
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout after 8s')), 8000))
