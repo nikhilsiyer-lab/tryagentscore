@@ -313,15 +313,12 @@ export async function GET(request: NextRequest) {
               new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000))
             ]) as any;
             
-            const textResponse = res.response.text() || '';
-            const textLower = textResponse.toLowerCase();
-            // Check if the response mentions the brand name or the domain
-            cited = textLower.includes(businessName.toLowerCase()) || 
-                    textLower.includes(domain.toLowerCase()) ||
-                    textLower.includes(domain.replace(/\.[^.]+$/, '').toLowerCase()); // bare name e.g. 'booking'
-
-            const groundingMetadata = (res.response as any).candidates?.[0]?.groundingMetadata;
+            const candidate = res.response.candidates?.[0];
+            const groundingMetadata = candidate?.groundingMetadata;
             webSources = groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web?.uri).filter(Boolean) || [];
+            
+            // Strict citation check: must appear in the actual search grounding URL list
+            cited = webSources.some((url: string) => url.toLowerCase().includes(domain.toLowerCase()));
           } catch (e) {
             console.error(`Error querying query ${i}:`, e);
           }
