@@ -101,6 +101,105 @@ No markdown, no extra text.`;
   return { businessName: brandName, category: 'online services', city: 'Global', confidence: 'low' };
 }
 
+async function classifyBusinessMode(businessName: string, category: string, location: string) {
+  const prompt = `Given this business:
+- Name: ${businessName}
+- Category: ${category}
+- Location: ${location}
+
+Classify it as one of three modes:
+- "local": serves customers in a specific city or district (dentists, lawyers, restaurants, salons, gyms, tradespeople)
+- "national": serves a whole country (national retailers, regional banks, country-specific e-commerce)
+- "global": serves worldwide with no geographic constraint (SaaS tools, apps, marketplaces, media)
+
+Reply with JSON only: {"mode": "local" | "national" | "global", "queryLanguage": "en" | "de" | "fr" etc.}`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const result = await Promise.race([
+      model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' }
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
+    ]) as any;
+    const data = JSON.parse(result.response.text().trim());
+    return {
+      mode: data.mode || 'global',
+      queryLanguage: data.queryLanguage || 'en'
+    };
+  } catch (e) {
+    console.error('Failed to classify business mode:', e);
+    return { mode: 'global', queryLanguage: 'en' };
+  }
+}
+
+async function generateModeQueries(businessName: string, category: string, location: string, mode: string, queryLanguage: string) {
+  let prompt = '';
+  
+  if (mode === "local") {
+    prompt = `Generate 16 search queries a real customer would use to find ${businessName}.
+Use hyper-local phrasing — include the specific city and district (like "${location}") where relevant.
+Write queries in language: "${queryLanguage}".
+Focus on: neighbourhood searches, "near me" intent, local recommendations.
+Example: "Zahnarzt Charlottenburg Berlin empfehlung"`;
+  } else if (mode === "national") {
+    prompt = `Generate 16 search queries a real customer would use to find ${businessName}.
+Use country-level phrasing. Write queries in language: "${queryLanguage}".
+Focus on: national comparisons, category searches within the country.
+Example: "beste Online-Apotheke Deutschland"`;
+  } else {
+    prompt = `Generate 16 search queries a real customer would use to find ${businessName}.
+Drop location entirely. Write queries in English.
+Focus on: feature comparisons, category searches, tool alternatives.
+Example: "best AI citation tracking tool" or "Semrush alternative for AI visibility"`;
+  }
+
+  prompt += `\n\nReturn ONLY a JSON object with a key "queries" mapping to a flat array of exactly 16 strings.
+Distribute the 16 queries exactly as follows:
+- The first 4 must be Informational queries.
+- The next 4 must be Local/National category queries.
+- The next 4 must be Comparison queries (comparing ${businessName} with other options).
+- The final 4 must be Direct queries searching for ${businessName} directly.`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const result = await Promise.race([
+      model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' }
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
+    ]) as any;
+    const data = JSON.parse(result.response.text().trim());
+    if (Array.isArray(data.queries) && data.queries.length === 16) {
+      return data.queries;
+    }
+    throw new Error('Did not return 16 queries');
+  } catch (e) {
+    console.error('Failed to generate mode-aware queries, falling back:', e);
+    // Generic fallback mapping to 4 of each category
+    return [
+      `What is the best ${category} platform or service?`,
+      `Top ${category} sites recommended by experts`,
+      `Most popular ${category} websites`,
+      `Compare top ${category} providers`,
+      `Which ${category} service should I use in ${location}?`,
+      `Best options for ${category} online`,
+      `Best ${category} near ${location}`,
+      `Top rated ${category} in ${location}`,
+      `What are the best ${businessName} alternatives?`,
+      `${businessName} vs competitors – which is best?`,
+      `Compare ${businessName} with other ${category} providers`,
+      `Alternative options to ${businessName}`,
+      `What does ${businessName} offer?`,
+      `${businessName} features and pricing`,
+      `How does ${businessName} work?`,
+      `Is ${businessName} a good ${category} service?`
+    ];
+  }
+}
+
 async function generateNicheQueries(businessName: string, category: string, city: string) {
   try {
     const response = await Promise.race([
@@ -249,56 +348,12 @@ export async function GET(request: NextRequest) {
         // 2. Business Niche & Details (already extracted concurrently)
         const { businessName, category, city, confidence } = details;
 
-        // 3. Generate Curated + Custom Queries
-        const customQueries = await generateNicheQueries(businessName, category, city);
-        
-        const libraryQueries = [
-          `What is the best ${category} platform or service?`,
-          `Top ${category} sites recommended by experts`,
-          `Which ${category} service should I use in ${city}?`,
-          `Best options for ${category} online`,
-          `Most popular ${category} websites`,
-          `Compare top ${category} providers`,
-          `What are the best ${businessName} alternatives?`,
-          `${businessName} vs competitors – which is best?`,
-          `Is ${businessName} a good ${category} service?`,
-          `${businessName} review and rating`,
-        ];
+        // 3. Classify Business Mode & target queryLanguage
+        const { mode, queryLanguage } = await classifyBusinessMode(businessName, category, city);
+        console.log(`Classified business ${businessName} as mode: ${mode}, language: ${queryLanguage}`);
 
-        // 5 targeted direct queries always using the actual brand
-        const directQueries = [
-          `What does ${businessName} offer?`,
-          `${businessName} features and pricing`,
-          `How does ${businessName} work?`,
-          `${businessName} pros and cons`,
-        ];
-
-        // Structured into exactly 4 queries per category (Total: 16 queries)
-        const informational = libraryQueries.slice(0, 4); // 4 informational
-        const local = libraryQueries.slice(4, 8); // 4 local
-        
-        // 4 comparison queries (library index 8 & 9, plus 2 brand vs competitor queries)
-        const comparison = [
-          libraryQueries[8],
-          libraryQueries[9],
-          `${businessName} vs competitors – which is best?`,
-          `What are the best ${businessName} alternatives?`
-        ];
-
-        // 4 direct queries
-        const direct = [
-          `What does ${businessName} offer?`,
-          `${businessName} features and pricing`,
-          `How does ${businessName} work?`,
-          `Is ${businessName} a good ${category} service?`
-        ];
-
-        const allQueries = [
-          ...informational,
-          ...local,
-          ...comparison,
-          ...direct
-        ];
+        // 3b. Generate mode-aware search queries (16 total)
+        const allQueries = await generateModeQueries(businessName, category, city, mode, queryLanguage);
 
         // 4. Citation Checking with search-grounded Gemini Flash
         const searchModel = genAI.getGenerativeModel({
