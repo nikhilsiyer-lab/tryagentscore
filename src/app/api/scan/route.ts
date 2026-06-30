@@ -321,10 +321,10 @@ export async function GET(request: NextRequest) {
             
             const candidate = res.response.candidates?.[0];
             const groundingMetadata = candidate?.groundingMetadata;
-            webSources = groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web?.uri).filter(Boolean) || [];
+            webSources = groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web?.title || chunk.web?.uri).filter(Boolean) || [];
             
-            // Strict citation check: must appear in the actual search grounding URL list
-            cited = webSources.some((url: string) => url.toLowerCase().includes(domain.toLowerCase()));
+            // Strict citation check: match against the raw domain/title
+            cited = webSources.some((src: string) => src.toLowerCase().includes(domain.toLowerCase()));
           } catch (e) {
             console.error(`Error querying query ${i}:`, e);
           }
