@@ -325,7 +325,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
               Who AI is recommending instead
             </p>
             
-            {citedCount === totalCount || competitors.length === 0 ? (
+            {citedCount === totalCount && citedCount > 0 ? (
               <div style={{
                 background: '#f0fdfa',
                 border: '1px solid #ccfbf1',
@@ -339,7 +339,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
               }}>
                 🎉 Great news — you appeared in every AI search we tested. No competitors displaced you in these queries.
               </div>
-            ) : (
+            ) : competitors.length > 0 ? (
               <>
                 <p className="section-desc">These businesses appeared in searches where<br/>you were not cited:</p>
                 <div className="competitors-container">
@@ -359,6 +359,20 @@ export default function Results({ report, description, onRescan, onNavigateToPri
                   ))}
                 </div>
               </>
+            ) : (
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                padding: '16px 20px',
+                borderRadius: '8px',
+                color: '#64748b',
+                fontSize: '0.95rem',
+                lineHeight: '1.5',
+                marginTop: '12px',
+                fontFamily: 'var(--font-sans)'
+              }}>
+                No competitor information was returned for these queries.
+              </div>
             )}
           </section>
         )}
