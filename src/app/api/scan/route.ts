@@ -42,13 +42,11 @@ function isBlockedPage(html: string): boolean {
 }
 
 async function extractBusinessDetails(domain: string, descriptionOverride?: string) {
+  const prompt = `What business is located at the domain "${domain}"?${ descriptionOverride ? ` Additional context: ${descriptionOverride}.` : '' } Return ONLY a JSON object with these exact keys: "businessName" (the real brand name), "category" (the specific service/product category), "city" (the primary market or country if global), "confidence" ("high" if you know this business well, "low" if not). No markdown, no extra text.`;
+
+  // Try Gemini first
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    
-    const prompt = `What business is located at the domain ${domain}? Return the official Business Name, the specific Business Category, and the primary City/Location/Market. Also, provide a 'confidence' field ('high' or 'low') based on how well you know this domain. If a description is provided: '${descriptionOverride || ''}', use it to help identify the business and set confidence to 'high'.
-
-Return ONLY a raw JSON object with the keys "businessName", "category", "city", and "confidence". Do not include markdown blocks or any other text.`;
-
     const result = await Promise.race([
       model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -56,14 +54,45 @@ Return ONLY a raw JSON object with the keys "businessName", "category", "city", 
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
     ]) as any;
-
     const text = result.response.text().trim();
     const cleanJson = text.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-    return JSON.parse(cleanJson);
-  } catch (e) {
-    console.error('Failed to extract business details:', e);
-    return { businessName: domain, category: 'Business', city: 'Local', confidence: 'low' };
+    const parsed = JSON.parse(cleanJson);
+    // Validate we got real data, not empty strings
+    if (parsed.businessName && parsed.businessName !== domain && parsed.category && parsed.category !== 'Business') {
+      console.log('Gemini extraction succeeded for', domain, '->', parsed.businessName);
+      return parsed;
+    }
+    throw new Error('Gemini returned empty or placeholder data');
+  } catch (geminiErr) {
+    console.error('Gemini extraction failed for', domain, ':', (geminiErr as any).message);
   }
+
+  // Fallback to Groq (llama3 knows all major brands)
+  try {
+    const response = await Promise.race([
+      groq.chat.completions.create({
+        model: 'llama3-8b-8192',
+        messages: [
+          { role: 'system', content: 'You are a business lookup tool. Identify any business from its domain name. Always respond with valid JSON only.' },
+          { role: 'user', content: prompt }
+        ],
+        response_format: { type: 'json_object' }
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
+    ]) as any;
+    const parsed = JSON.parse(response.choices[0]?.message?.content || '{}');
+    if (parsed.businessName && parsed.businessName !== domain) {
+      console.log('Groq extraction succeeded for', domain, '->', parsed.businessName);
+      return { ...parsed, confidence: parsed.confidence || 'high' };
+    }
+    throw new Error('Groq returned empty data');
+  } catch (groqErr) {
+    console.error('Groq extraction also failed for', domain, ':', (groqErr as any).message);
+  }
+
+  // Last resort: use domain name directly
+  const brandName = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
+  return { businessName: brandName, category: 'online services', city: 'Global', confidence: 'low' };
 }
 
 async function generateNicheQueries(businessName: string, category: string, city: string) {
@@ -218,28 +247,31 @@ export async function GET(request: NextRequest) {
         const customQueries = await generateNicheQueries(businessName, category, city);
         
         const libraryQueries = [
-          `Who is the best ${category} in ${city}?`,
-          `Recommendations for a reliable ${category} in ${city}`,
-          `Top-rated ${category} near ${city}`,
-          `Where should I go for ${category} in ${city}?`,
-          `Which is the most recommended ${category} in ${city}?`,
-          `Can you recommend a friendly ${category} in ${city}?`,
-          `Reviews for ${category} businesses in ${city}`,
-          `List of professional ${category} in ${city} area`,
-          `Who is the leading ${category} in ${city}?`,
-          `Best quality ${category} options in ${city}`,
-          `Is there a good ${category} in ${city} to visit?`,
-          `I need a ${category} in ${city}, who is the top choice?`,
-          `Which ${category} in ${city} has the best client reputation?`,
-          `Looking for a licensed ${category} in ${city}`,
-          `Which ${category} in ${city} is open and highly rated?`
+          `What is the best ${category} platform or service?`,
+          `Top ${category} sites recommended by experts`,
+          `Which ${category} service should I use in ${city}?`,
+          `Best options for ${category} online`,
+          `Most popular ${category} websites`,
+          `Compare top ${category} providers`,
+          `What are the best ${businessName} alternatives?`,
+          `${businessName} vs competitors – which is best?`,
+          `Is ${businessName} a good ${category} service?`,
+          `${businessName} review and rating`,
         ];
 
-        // Pick 10 library queries + 4 custom queries to total 14 prompts
-        // This ensures the 1 extraction + 14 searches = 15 RPM limit on Gemini Free Tier!
+        // 5 targeted direct queries always using the actual brand
+        const directQueries = [
+          `What does ${businessName} offer?`,
+          `${businessName} features and pricing`,
+          `How does ${businessName} work?`,
+          `${businessName} pros and cons`,
+        ];
+
+        // Pick 10 library queries + Groq custom queries + 4 direct brand queries
         const allQueries = [
           ...libraryQueries.slice(0, 10),
-          ...customQueries.slice(0, 4)
+          ...customQueries.slice(0, 0), // skip slow groq queries to save RPM
+          ...directQueries.slice(0, 4)
         ].slice(0, 14);
 
         // 4. Citation Checking with search-grounded Gemini Flash
@@ -262,7 +294,11 @@ export async function GET(request: NextRequest) {
             ]) as any;
             
             const textResponse = res.response.text() || '';
-            cited = textResponse.toLowerCase().includes(businessName.toLowerCase()) || textResponse.toLowerCase().includes(domain.toLowerCase());
+            const textLower = textResponse.toLowerCase();
+            // Check if the response mentions the brand name or the domain
+            cited = textLower.includes(businessName.toLowerCase()) || 
+                    textLower.includes(domain.toLowerCase()) ||
+                    textLower.includes(domain.replace(/\.[^.]+$/, '').toLowerCase()); // bare name e.g. 'booking'
 
             const groundingMetadata = (res.response as any).candidates?.[0]?.groundingMetadata;
             webSources = groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web?.uri).filter(Boolean) || [];
