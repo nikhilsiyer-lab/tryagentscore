@@ -241,9 +241,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
 
           {isBlocked ? (
             <div style={{ padding: '16px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '6px', color: '#b45309', marginBottom: '16px', fontSize: '0.95rem', lineHeight: '1.5' }}>
-              <strong>Technical checks unavailable</strong> — this site uses bot protection (e.g. Cloudflare, Datadome).
-              <br />
-              <span style={{ fontSize: '0.875rem', opacity: 0.85 }}>Bot protection blocks AI crawlers from reading your pages, which likely reduces your citation rate. Consider adding an <code>llms.txt</code> file to give AI tools a direct summary of your business.</span>
+              <strong>Technical checks unavailable</strong> — this site uses bot protection (e.g. Cloudflare, Datadome). AI crawlers may face the same restrictions, which can reduce citation rates. Adding an <code>llms.txt</code> file gives AI tools a direct summary without needing to crawl.
             </div>
           ) : (
             <ul className="audit-list">
