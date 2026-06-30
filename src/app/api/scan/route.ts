@@ -267,12 +267,32 @@ export async function GET(request: NextRequest) {
           `${businessName} pros and cons`,
         ];
 
-        // Pick 10 library queries + Groq custom queries + 4 direct brand queries
+        // Structured into exactly 4 queries per category (Total: 16 queries)
+        const informational = libraryQueries.slice(0, 4); // 4 informational
+        const local = libraryQueries.slice(4, 8); // 4 local
+        
+        // 4 comparison queries (library index 8 & 9, plus 2 brand vs competitor queries)
+        const comparison = [
+          libraryQueries[8],
+          libraryQueries[9],
+          `${businessName} vs competitors – which is best?`,
+          `What are the best ${businessName} alternatives?`
+        ];
+
+        // 4 direct queries
+        const direct = [
+          `What does ${businessName} offer?`,
+          `${businessName} features and pricing`,
+          `How does ${businessName} work?`,
+          `Is ${businessName} a good ${category} service?`
+        ];
+
         const allQueries = [
-          ...libraryQueries.slice(0, 10),
-          ...customQueries.slice(0, 0), // skip slow groq queries to save RPM
-          ...directQueries.slice(0, 4)
-        ].slice(0, 14);
+          ...informational,
+          ...local,
+          ...comparison,
+          ...direct
+        ];
 
         // 4. Citation Checking with search-grounded Gemini Flash
         const searchModel = genAI.getGenerativeModel({
@@ -399,18 +419,18 @@ export async function GET(request: NextRequest) {
           console.error('Failed to save scan snapshot to Supabase:', e);
         }
 
-        // Calculate category breakdowns from the 14 actual query results
-        // 0-3 (4 informational), 4-7 (4 local), 8-10 (3 comparison), 11-13 (3 direct)
+        // Calculate category breakdowns from the 16 actual query results
+        // 0-3 (4 informational), 4-7 (4 local), 8-11 (4 comparison), 12-15 (4 direct)
         const informational = queryResults.slice(0, 4).filter(r => r.cited).length;
         const local = queryResults.slice(4, 8).filter(r => r.cited).length;
-        const comparison = queryResults.slice(8, 11).filter(r => r.cited).length;
-        const direct = queryResults.slice(11, 14).filter(r => r.cited).length;
+        const comparison = queryResults.slice(8, 12).filter(r => r.cited).length;
+        const direct = queryResults.slice(12, 16).filter(r => r.cited).length;
 
         const intentCategories = [
           { name: 'Informational queries', cited: informational, total: 4 },
           { name: 'Local intent queries', cited: local, total: 4 },
-          { name: 'Comparison queries', cited: comparison, total: 3 },
-          { name: 'Direct queries', cited: direct, total: 3 }
+          { name: 'Comparison queries', cited: comparison, total: 4 },
+          { name: 'Direct queries', cited: direct, total: 4 }
         ];
 
         const report = {

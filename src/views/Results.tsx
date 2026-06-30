@@ -20,7 +20,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
   const [compositeScore, setCompositeScore] = useState<number>(report.compositeScore || 0);
   const [citationRate, setCitationRate] = useState<number>(report.citationRate || 0);
   const [citedCount, setCitedCount] = useState<number>(report.citedCount || 0);
-  const [totalCount, setTotalCount] = useState<number>(report.totalCount || 14);
+  const [totalCount, setTotalCount] = useState<number>(report.totalCount || 16);
   const [competitors, setCompetitors] = useState<CompetitorGap[]>(report.competitors || []);
   const [topFixes, setTopFixes] = useState<FixItem[]>(report.topFixes || []);
   const [confidence, setConfidence] = useState<string>(report.confidence || 'high');
