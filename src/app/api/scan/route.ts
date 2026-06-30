@@ -46,7 +46,7 @@ async function extractBusinessDetails(domain: string, descriptionOverride?: stri
 
   // Try Gemini first
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const result = await Promise.race([
       model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -276,7 +276,7 @@ export async function GET(request: NextRequest) {
 
         // 4. Citation Checking with search-grounded Gemini Flash
         const searchModel = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.0-flash',
           tools: [{ googleSearch: {} }]
         });
 
