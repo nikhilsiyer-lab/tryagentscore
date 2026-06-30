@@ -324,7 +324,8 @@ export async function GET(request: NextRequest) {
           r.webSources.forEach((urlStr: string) => {
             try {
               let compDomain = urlStr.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-              if (compDomain !== domain && compDomain !== 'google.com' && compDomain !== 'youtube.com') {
+              const blockedDomains = ['google.com', 'youtube.com', 'vertexaisearch.cloud.google.com', 'googleapis.com', 'gstatic.com', 'wikipedia.org', 'reddit.com', 'twitter.com', 'facebook.com', 'instagram.com', 'linkedin.com'];
+              if (compDomain !== domain && !blockedDomains.some(b => compDomain.includes(b))) {
                 competitorsMap.set(compDomain, (competitorsMap.get(compDomain) || 0) + 1);
               }
             } catch (_) {}
