@@ -6,66 +6,73 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const results: Record<string, any> = {};
+  const key = process.env.GEMINI_API_KEY || '';
 
-  // 1. Check env vars exist (don't expose values)
+  // 1. Check env vars exist
   results.env = {
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY ? `set (${process.env.GEMINI_API_KEY.length} chars, starts: ${process.env.GEMINI_API_KEY.substring(0, 8)})` : 'MISSING',
+    GEMINI_API_KEY: key ? `set (${key.length} chars, starts: ${key.substring(0, 8)})` : 'MISSING',
     GROQ_API_KEY: process.env.GROQ_API_KEY ? `set (${process.env.GROQ_API_KEY.length} chars, starts: ${process.env.GROQ_API_KEY.substring(0, 5)})` : 'MISSING',
   };
 
-  // 1b. List available Gemini models to find which ones work with this key
+  // 2. Test RAW FETCH — bypass the SDK entirely
   try {
-    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const listJson = await listRes.json();
-    if (listJson.models) {
-      // Only show flash/pro models that support generateContent
-      results.available_models = listJson.models
-        .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-        .map((m: any) => m.name)
-        .filter((n: string) => n.includes('flash') || n.includes('pro'));
+    const rawRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'Reply with just the word: WORKING' }] }] })
+      }
+    );
+    const rawJson = await rawRes.json();
+    if (rawJson.candidates) {
+      results.gemini_raw_fetch = 'OK: ' + rawJson.candidates[0]?.content?.parts[0]?.text;
     } else {
-      results.available_models = 'FAIL: ' + JSON.stringify(listJson).substring(0, 200);
+      results.gemini_raw_fetch = 'FAIL: ' + JSON.stringify(rawJson).substring(0, 300);
     }
   } catch(e: any) {
-    results.available_models = 'FAIL: ' + e.message;
+    results.gemini_raw_fetch = 'FAIL: ' + e.message;
   }
 
-  // 2. Test Gemini basic (no grounding)
+  // 3. Test RAW FETCH with grounding
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+    const rawRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'What is booking.com? One sentence.' }] }],
+          tools: [{ googleSearch: {} }]
+        })
+      }
+    );
+    const rawJson = await rawRes.json();
+    if (rawJson.candidates) {
+      const text = rawJson.candidates[0]?.content?.parts[0]?.text || '';
+      const chunks = rawJson.candidates[0]?.groundingMetadata?.groundingChunks || [];
+      results.gemini_grounded_raw = `OK: text_len=${text.length}, chunks=${chunks.length}, sample="${text.substring(0, 100)}"`;
+    } else {
+      results.gemini_grounded_raw = 'FAIL: ' + JSON.stringify(rawJson).substring(0, 300);
+    }
+  } catch(e: any) {
+    results.gemini_grounded_raw = 'FAIL: ' + e.message;
+  }
+
+  // 4. Test Gemini SDK (for comparison)
+  try {
+    const genAI = new GoogleGenerativeAI(key);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const result = await Promise.race([
       model.generateContent('Reply with just the word: WORKING'),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout after 8s')), 8000))
     ]) as any;
-    results.gemini_basic = 'OK: ' + result.response.text().trim();
+    results.gemini_sdk = 'OK: ' + result.response.text().trim();
   } catch (e: any) {
-    results.gemini_basic = 'FAIL: ' + e.message;
+    results.gemini_sdk = 'FAIL: ' + e.message;
   }
 
-  // 3. Test Gemini with Google Search grounding
-  try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    const searchModel = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      tools: [{ googleSearch: {} }]
-    });
-    const res = await Promise.race([
-      searchModel.generateContent('What is booking.com? One sentence.'),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout after 15s')), 15000))
-    ]) as any;
-    const text = res.response.text();
-    const chunks = res.response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    results.gemini_grounded_search = `OK: text_len=${text.length}, grounding_chunks=${chunks.length}`;
-    results.gemini_grounded_sample = text.substring(0, 200);
-    results.gemini_grounded_chunks = chunks.slice(0, 2).map((c: any) => c.web?.uri);
-  } catch (e: any) {
-    results.gemini_grounded_search = 'FAIL: ' + e.message;
-  }
-
-  // 4. Test Groq
+  // 5. Test Groq
   try {
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
     const response = await Promise.race([
