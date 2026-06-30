@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   // 2. Test RAW FETCH — bypass the SDK entirely
   try {
     const rawRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   // 3. Test RAW FETCH with grounding
   try {
     const rawRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
   // 4. Test Gemini SDK (for comparison)
   try {
     const genAI = new GoogleGenerativeAI(key);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await Promise.race([
       model.generateContent('Reply with just the word: WORKING'),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout after 8s')), 8000))
