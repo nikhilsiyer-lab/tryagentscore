@@ -14,6 +14,9 @@ export default function SharedResultsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Force light theme on the HTML element for visibility matching
+    document.documentElement.classList.add('light-theme');
+    
     if (!id) return;
 
     fetch(`/api/results?id=${id}`)
@@ -31,6 +34,11 @@ export default function SharedResultsPage() {
         setError(err.message || 'An error occurred');
         setLoading(false);
       });
+
+    return () => {
+      // Clean up on unmount
+      document.documentElement.classList.remove('light-theme');
+    };
   }, [id]);
 
   const handleRescan = () => {
