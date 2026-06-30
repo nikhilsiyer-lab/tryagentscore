@@ -162,8 +162,13 @@ export default function Results({ report, description, onRescan, onNavigateToPri
           <div className="zone-0-top">
             <span className="domain-label">{report.domain}</span>
             <div className="header-actions">
-              <button className="action-link" onClick={() => alert('Share link copied!')}>Share</button>
-              <button className="action-link" onClick={() => alert('Exporting PDF/CSV...')}>Export ↓</button>
+              <button className="action-link" onClick={() => {
+                const url = scanId ? `${origin || window.location.origin}/results/${scanId}` : window.location.href;
+                navigator.clipboard.writeText(url).then(() => {
+                  const btn = document.getElementById('share-btn');
+                  if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Share'; }, 2000); }
+                });
+              }} id="share-btn">Share</button>
             </div>
           </div>
 
@@ -172,10 +177,14 @@ export default function Results({ report, description, onRescan, onNavigateToPri
               AI search tools did not mention your business in any of our<br />
               {totalCount} test searches. That is common for new sites — and it is fixable.
             </p>
+          ) : citedCount >= Math.floor(totalCount * 0.7) && !isScanning ? (
+            <p className="hero-statement">
+              Strong result — AI tools cited your business in {citedCount} of {totalCount} searches.
+            </p>
           ) : (
             <p className="hero-statement">
-              In our test, AI search tools mentioned your business<br />
-              in {isScanning ? '...' : citedCount} out of {totalCount} searches. Here is your full report.
+              AI tools mentioned your business in {isScanning ? '...' : citedCount} of {totalCount} searches.
+              Here is your full report.
             </p>
           )}
 
@@ -193,12 +202,16 @@ export default function Results({ report, description, onRescan, onNavigateToPri
               <>
                 {citedCount === 0 ? (
                   <div className="benchmark-text">
-                    Your page is technically live, but AI tools are not yet choosing it in test searches. This usually improves after clearer page text, crawler access, and more mentions across the web.
+                    Your page is technically live, but AI tools are not yet choosing it in test searches.
+                    This usually improves after clearer page text, crawler access, and more mentions across the web.
+                  </div>
+                ) : compositeScore > 31 ? (
+                  <div className="benchmark-text">
+                    Industry average: <strong>31/100</strong> — you are above average.
                   </div>
                 ) : (
                   <div className="benchmark-text">
-                    The average for service businesses is 31/100.<br/>
-                    You are in the top half of businesses we have tested.
+                    Industry average: <strong>31/100</strong> — there is room to improve.
                   </div>
                 )}
               </>
@@ -225,8 +238,10 @@ export default function Results({ report, description, onRescan, onNavigateToPri
           </p>
 
           {isBlocked ? (
-            <div style={{ padding: '16px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '6px', color: '#b45309', marginBottom: '16px', fontSize: '0.95rem' }}>
+            <div style={{ padding: '16px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '6px', color: '#b45309', marginBottom: '16px', fontSize: '0.95rem', lineHeight: '1.5' }}>
               <strong>Technical checks unavailable</strong> — this site uses bot protection (e.g. Cloudflare, Datadome).
+              <br />
+              <span style={{ fontSize: '0.875rem', opacity: 0.85 }}>Bot protection blocks AI crawlers from reading your pages, which likely reduces your citation rate. Consider adding an <code>llms.txt</code> file to give AI tools a direct summary of your business.</span>
             </div>
           ) : (
             <ul className="audit-list">
@@ -244,38 +259,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
           )}
         </section>
 
-        {/* PRO MONITORING WAITLIST (Inline) */}
-        {!isScanning && (
-          <div className="inline-email-capture animate-slide-up" style={{ textAlign: 'center', padding: '32px 24px' }}>
-            <div className="email-capture-inner">
-              <h4 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px' }}>Want to know when your score improves?</h4>
-              <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', marginBottom: '24px' }}>
-                Weekly monitoring — coming with Pro.
-              </p>
-              <button 
-                onClick={onNavigateToPricing} 
-                style={{ 
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '12px 28px', 
-                  background: '#0f172a', 
-                  color: '#ffffff', 
-                  border: 'none', 
-                  borderRadius: '6px', 
-                  fontWeight: 600,
-                  fontSize: '0.95rem',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s, transform 0.1s'
-                }}
-                onMouseOver={e => e.currentTarget.style.background = '#1e293b'}
-                onMouseOut={e => e.currentTarget.style.background = '#0f172a'}
-              >
-                Join the Pro waitlist →
-              </button>
-            </div>
-          </div>
-        )}
+        {/* spacer — Pro CTA moved to bottom */}
 
         {/* ZONE 2 - CITATION SCAN */}
         <section className="zone-2">
@@ -359,10 +343,6 @@ export default function Results({ report, description, onRescan, onNavigateToPri
                 </div>
               ))}
             </div>
-            <div className="add-competitor">
-              <span className="add-icon">+</span>
-              <input type="text" placeholder="Add a competitor to track [enter URL]" />
-            </div>
           </section>
         )}
 
@@ -399,7 +379,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
                         {fix.fixAction === 'link' && 'Read guide →'}
                       </a>
                       <span className="action-plan-time-label">
-                        Takes {fix.timeEstimate.replace('Takes ', '')}
+                        {fix.timeEstimate.replace(/^takes\s+/i, 'Takes ')}
                       </span>
                     </div>
                   </div>
@@ -421,59 +401,47 @@ export default function Results({ report, description, onRescan, onNavigateToPri
           </section>
         )}
 
-        {/* ZONE 5 - COMPETITIVE REPORT TEASER (GROWTH UPGRADE) */}
+        {/* PRO MONITORING CTA — bottom of page */}
         {!isScanning && (
           <section className="zone-5 animate-slide-up">
-            <p className="section-header-uppercase">
-              See how you compare across AI tools
-            </p>
-            
-            <p className="section-desc">
-              These businesses are being cited in searches where you are not:
-            </p>
-            
-            <ul className="competitive-teaser-list" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', marginBottom: '24px', padding: 0, listStyle: 'none' }}>
-              {(competitors || []).slice(0, 3).map((comp, idx) => {
-                const filledBlocks = Math.round((comp.appearances / totalCount) * 16);
-                const emptyBlocks = Math.max(0, 16 - filledBlocks);
-                const progressBar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
-                return (
-                  <li key={comp.domain || idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ flex: 1 }}>{comp.domain}</span>
-                    <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>{progressBar}</span>
-                    <span style={{ width: '40px', textAlign: 'right' }}>{comp.appearances}/{totalCount}</span>
-                  </li>
-                );
-              })}
-              {competitors.length > 3 && (
-                <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', opacity: 0.5 }}>
-                  <span style={{ flex: 1 }}>
-                    <button className="expand-fixes-teal-link" style={{ marginTop: 0 }} onClick={() => alert('Unlock competitive report to see more!')}>
-                      + {competitors.length - 3} more
-                    </button>
-                  </span>
-                  <span style={{ color: 'var(--primary)', letterSpacing: '2px', flex: 1 }}>░░░░░░░░░░░░░░░░</span>
-                  <span style={{ width: '40px', textAlign: 'right', filter: 'blur(4px)' }}>████</span>
-                </li>
-              )}
-            </ul>
-            
-            <p className="section-desc" style={{ marginBottom: '24px' }}>
-              See the full breakdown across ChatGPT, Perplexity, Gemini and Claude —<br/>
-              which prompts trigger citations for your competitors, and what<br/>
-              their pages do differently.
-            </p>
-
-            <div className="growth-gate">
-              <div className="gate-actions" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                <button className="btn-growth" onClick={() => alert('Redirect to Stripe checkout...')}>
-                  [Unlock competitive report →]
+            <div className="inline-email-capture" style={{ textAlign: 'center', padding: '32px 24px' }}>
+              <div className="email-capture-inner">
+                <h4 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px' }}>Monitor your score weekly</h4>
+                <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.6' }}>
+                  Get notified when your AI citation rate improves — or drops.<br />
+                  Weekly monitoring, competitor tracking, and fix recommendations.
+                </p>
+                <button
+                  onClick={onNavigateToPricing}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '12px 28px',
+                    background: '#0f172a',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontWeight: 600,
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                  }}
+                  onMouseOver={e => e.currentTarget.style.background = '#1e293b'}
+                  onMouseOut={e => e.currentTarget.style.background = '#0f172a'}
+                >
+                  Join the Pro waitlist →
                 </button>
-                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>19 EUR/month · Cancel anytime</span>
+                <div style={{ marginTop: '12px' }}>
+                  <button
+                    onClick={onRescan}
+                    style={{ background: 'none', border: 'none', fontSize: '0.875rem', color: '#9ca3af', cursor: 'pointer' }}
+                    onMouseOver={e => e.currentTarget.style.color = '#6b7280'}
+                    onMouseOut={e => e.currentTarget.style.color = '#9ca3af'}
+                  >
+                    Scan another site
+                  </button>
+                </div>
               </div>
-              <button className="maybe-later-btn" onClick={onRescan}>
-                Maybe later
-              </button>
             </div>
           </section>
         )}
