@@ -41,12 +41,12 @@ function isBlockedPage(html: string): boolean {
   return signals.some(s => html.toLowerCase().includes(s));
 }
 
-async function extractBusinessDetails(domain: string, descriptionOverride?: string) {
-  const prompt = `What business is located at the domain "${domain}"?${ descriptionOverride ? ` Additional context: ${descriptionOverride}.` : '' } 
+async function extractBusinessDetails(domain: string, targetUrl: string, descriptionOverride?: string) {
+  const prompt = `What business is located at the website URL "${targetUrl}" (root domain: "${domain}")?${ descriptionOverride ? ` Additional context: ${descriptionOverride}.` : '' } 
 Return ONLY a JSON object with these exact keys:
 1. "businessName" (the real brand name)
 2. "category" (the most common, singular local business category noun in English, e.g., "Law Firm", "Physiotherapist", "Hotel", "Restaurant", "Dentist" — do NOT use double categories like "Law Firm & Tax Advisors" or ampersands)
-3. "city" (the primary city where their headquarters/main office is located. If it is an online-only platform, use "Global")
+3. "city" (the specific city this webpage is targeting or located in, e.g., "Berlin" if the URL contains "berlin", otherwise primary headquarters. If it is an online-only platform, use "Global")
 4. "confidence" ("high" if you know this business well, "low" if not).
 No markdown, no extra text.`;
 
@@ -213,7 +213,7 @@ export async function GET(request: NextRequest) {
         // Run technical fetch and Gemini extraction concurrently
         const [fetchRes, details] = await Promise.all([
           fetch(fetchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 0 } }).catch(() => null),
-          extractBusinessDetails(domain, description)
+          extractBusinessDetails(domain, fetchUrl, description)
         ]);
 
         const html = fetchRes ? await fetchRes.text() : '';
