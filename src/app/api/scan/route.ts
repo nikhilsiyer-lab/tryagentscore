@@ -41,16 +41,22 @@ function isBlockedPage(html: string): boolean {
   return signals.some(s => html.toLowerCase().includes(s));
 }
 
-async function extractBusinessDetails(domain: string, targetUrl: string, descriptionOverride?: string) {
-  const prompt = `What business is located at the website URL "${targetUrl}" (root domain: "${domain}")?${ descriptionOverride ? ` Additional context: ${descriptionOverride}.` : '' } 
+async function analyzeBusinessProfile(domain: string, targetUrl: string, descriptionOverride?: string, htmlSnippet?: string) {
+  const prompt = `Analyze the business at URL "${targetUrl}" (root domain: "${domain}").
+${descriptionOverride ? `Additional context: ${descriptionOverride}\n` : ''}${htmlSnippet ? `Website snippet:\n${htmlSnippet}\n` : ''}
 Return ONLY a JSON object with these exact keys:
-1. "businessName" (the real brand name)
-2. "category" (the most common, singular local business category noun in English, e.g., "Law Firm", "Physiotherapist", "Hotel", "Restaurant", "Dentist" — do NOT use double categories like "Law Firm & Tax Advisors" or ampersands)
-3. "city" (the specific city this webpage is targeting or located in, e.g., "Berlin" if the URL contains "berlin", otherwise primary headquarters. If it is an online-only platform, use "Global")
-4. "confidence" ("high" if you know this business well, "low" if not).
+1. "businessMode": "local" (specific city/district), "national" (whole country), or "global" (worldwide/SaaS)
+2. "areaScope": "district", "city", "country", or "global"
+3. "serviceBreadth": "single", "multi", or "multi-discipline"
+4. "primaryCategory": The most common singular category noun (e.g. "Law Firm", "Dentist", "SaaS")
+5. "topServices": Array of strings (Top 3-5 specific services offered, e.g. ["Teeth Whitening", "Implants"])
+6. "location": Specific city or district (or "Global" if SaaS/online)
+7. "queryLanguage": 2-letter language code (e.g., "en", "de", "fr")
+8. "businessName": The real brand name
+9. "confidence": "high" or "low"
+
 No markdown, no extra text.`;
 
-  // Try Gemini first
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await Promise.race([
@@ -60,106 +66,56 @@ No markdown, no extra text.`;
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
     ]) as any;
+    
     const text = result.response.text().trim();
     const cleanJson = text.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-    const parsed = JSON.parse(cleanJson);
-    // Validate we got real data, not empty strings
-    if (parsed.businessName && parsed.businessName !== domain && parsed.category && parsed.category !== 'Business') {
-      console.log('Gemini extraction succeeded for', domain, '->', parsed.businessName);
-      return parsed;
-    }
-    throw new Error('Gemini returned empty or placeholder data');
-  } catch (geminiErr) {
-    console.error('Gemini extraction failed for', domain, ':', (geminiErr as any).message);
-  }
-
-  // Fallback to Groq (llama3 knows all major brands)
-  try {
-    const response = await Promise.race([
-      groq.chat.completions.create({
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          { role: 'system', content: 'You are a business lookup tool. Identify any business from its domain name. Always respond with valid JSON only.' },
-          { role: 'user', content: prompt }
-        ],
-        response_format: { type: 'json_object' }
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
-    ]) as any;
-    const parsed = JSON.parse(response.choices[0]?.message?.content || '{}');
-    if (parsed.businessName && parsed.businessName !== domain) {
-      console.log('Groq extraction succeeded for', domain, '->', parsed.businessName);
-      return { ...parsed, confidence: parsed.confidence || 'high' };
-    }
-    throw new Error('Groq returned empty data');
-  } catch (groqErr) {
-    console.error('Groq extraction also failed for', domain, ':', (groqErr as any).message);
-  }
-
-  // Last resort: use domain name directly
-  const brandName = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
-  return { businessName: brandName, category: 'online services', city: 'Global', confidence: 'low' };
-}
-
-async function classifyBusinessMode(businessName: string, category: string, location: string) {
-  const prompt = `Given this business:
-- Name: ${businessName}
-- Category: ${category}
-- Location: ${location}
-
-Classify it as one of three modes:
-- "local": serves customers in a specific city or district (dentists, lawyers, restaurants, salons, gyms, tradespeople)
-- "national": serves a whole country (national retailers, regional banks, country-specific e-commerce)
-- "global": serves worldwide with no geographic constraint (SaaS tools, apps, marketplaces, media)
-
-Reply with JSON only: {"mode": "local" | "national" | "global", "queryLanguage": "en" | "de" | "fr" etc.}`;
-
-  try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const result = await Promise.race([
-      model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' }
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
-    ]) as any;
-    const data = JSON.parse(result.response.text().trim());
+    return JSON.parse(cleanJson);
+  } catch (err) {
+    console.error('Failed to analyze business profile:', (err as any).message);
+    const brandName = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
     return {
-      mode: data.mode || 'global',
-      queryLanguage: data.queryLanguage || 'en'
+      businessMode: 'global',
+      areaScope: 'global',
+      serviceBreadth: 'single',
+      primaryCategory: 'online services',
+      topServices: [],
+      location: 'Global',
+      queryLanguage: 'en',
+      businessName: brandName,
+      confidence: 'low'
     };
-  } catch (e) {
-    console.error('Failed to classify business mode:', e);
-    return { mode: 'global', queryLanguage: 'en' };
   }
 }
 
-async function generateModeQueries(businessName: string, category: string, location: string, mode: string, queryLanguage: string) {
-  let prompt = '';
+async function generateModeQueries(profile: any) {
+  const { businessName, primaryCategory, topServices = [], location, queryLanguage, businessMode, serviceBreadth } = profile;
   
-  if (mode === "local") {
-    prompt = `Generate exactly 4 search queries a real customer would use to find ${businessName}.
-Use hyper-local phrasing — include the specific city and district (like "${location}") where relevant.
-Write queries in language: "${queryLanguage}".
-Focus on: neighbourhood searches, "near me" intent, local recommendations.
-Example: "Zahnarzt Charlottenburg Berlin empfehlung"`;
-  } else if (mode === "national") {
-    prompt = `Generate exactly 4 search queries a real customer would use to find ${businessName}.
-Use country-level phrasing. Write queries in language: "${queryLanguage}".
-Focus on: national comparisons, category searches within the country.
-Example: "beste Online-Apotheke Deutschland"`;
+  let promptFormula = '';
+  if (businessMode === 'local' || businessMode === 'national') {
+    if (serviceBreadth === 'single') {
+      promptFormula = `Use this formula: {service} + {location}`;
+    } else if (serviceBreadth === 'multi' || serviceBreadth === 'multi-discipline') {
+      promptFormula = `Use this formula: {umbrella category} + {location} PLUS variations using these top services: ${topServices.join(', ')}`;
+    } else {
+      promptFormula = `Use this formula: {category} + {location}`;
+    }
   } else {
-    prompt = `Generate exactly 4 search queries a real customer would use to find ${businessName}.
-Drop location entirely. Write queries in English.
-Focus on: feature comparisons, category searches, tool alternatives.
-Example: "best AI citation tracking tool" or "Semrush alternative for AI visibility"`;
+    promptFormula = `Use this formula: {category} or {feature} with no location (global SaaS style).`;
   }
 
-  prompt += `\n\nReturn ONLY a JSON object with a key "queries" mapping to a flat array of exactly 4 strings.
+  let prompt = `Generate exactly 4 search queries a real customer would use to find ${businessName}.
+Write queries in language: "${queryLanguage}".
+Location context: "${location}"
+Category: "${primaryCategory}"
+Top Services: ${topServices.join(', ')}
+
+${promptFormula}
+
+Return ONLY a JSON object with a key "queries" mapping to a flat array of exactly 4 strings.
 The 4 queries must represent these categories in order:
-1. Informational — a general question about the business type
+1. Informational — a general question about the business type or a problem they solve
 2. Local intent — a location-specific search (or feature-focused if global mode)
-3. Comparison — a head-to-head or alternatives search
+3. Comparison — a head-to-head or alternatives search (e.g., "alternatives to...", or "best [category] in [location]")
 4. Direct — a brand-specific query about ${businessName}`;
 
   try {
@@ -178,12 +134,11 @@ The 4 queries must represent these categories in order:
     throw new Error('Did not return 4 queries');
   } catch (e) {
     console.error('Failed to generate mode-aware queries, falling back:', e);
-    // Generic fallback mapping to 1 of each category
     return [
-      `What is the best ${category} platform or service?`,
-      `Which ${category} service should I use in ${location}?`,
+      `What is the best ${primaryCategory} platform or service?`,
+      `Which ${primaryCategory} service should I use in ${location}?`,
       `What are the best ${businessName} alternatives?`,
-      `Is ${businessName} a good ${category} service?`
+      `Is ${businessName} a good ${primaryCategory} service?`
     ];
   }
 }
@@ -231,7 +186,7 @@ async function generateFixSuggestions(htmlContent: string) {
         messages: [
           {
             role: 'system',
-            content: 'You are an SEO and GEO expert. Based on the website text, generate exactly 3 concrete, customized fix recommendations to improve the site\'s visibility in AI search. Return ONLY a JSON object with a key "fixes" containing an array of 3 objects, each with "title" (string), "description" (string), "impact" ("Critical" | "High" | "Medium"), and "timeEstimate" (string).'
+            content: 'You are an SEO and AI-visibility expert. Based on the website text, generate exactly 3 concrete, customized fix recommendations to improve the site\'s visibility in AI search. For each fix, assign a "tier": "quick_win" (owner can do it themselves in under 1 hour), "this_week" (owner-level task taking a few days), or "hire_dev" (requires a developer or agency). Return ONLY a JSON object with a key "fixes" containing an array of 3 objects, each with "title" (string), "description" (string), "impact" ("Critical" | "High" | "Medium"), "timeEstimate" (string), and "tier" ("quick_win" | "this_week" | "hire_dev"). Order them from highest to lowest impact.'
           },
           {
             role: 'user',
@@ -254,11 +209,13 @@ async function generateFixSuggestions(htmlContent: string) {
         description: 'Publish an llms.txt file to the root of your domain to directly feed AI tools with context about your business.',
         impact: 'High',
         timeEstimate: '10 minutes',
-        fixAction: 'llms'
+        fixAction: 'llms',
+        tier: 'quick_win'
       }
     ];
   }
 }
+
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -297,12 +254,8 @@ export async function GET(request: NextRequest) {
 
         const fetchUrl = targetUrl.startsWith('http') ? targetUrl : `https://${targetUrl}`;
 
-        // Run technical fetch and Gemini extraction concurrently
-        const [fetchRes, details] = await Promise.all([
-          fetch(fetchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 0 } }).catch(() => null),
-          extractBusinessDetails(domain, fetchUrl, description)
-        ]);
-
+        // Run technical fetch first
+        const fetchRes = await fetch(fetchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 0 } }).catch(() => null);
         const html = fetchRes ? await fetchRes.text() : '';
         const isBlocked = !html || (fetchRes && fetchRes.status === 403) || isBlockedPage(html);
 
@@ -333,15 +286,19 @@ export async function GET(request: NextRequest) {
 
         sendEvent('audit_complete', { technicalChecks, isBlocked });
 
-        // 2. Business Niche & Details (already extracted concurrently)
-        const { businessName, category, city, confidence } = details;
+        // Extract title and meta description for AI analysis
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        const pageTitle = titleMatch ? titleMatch[1] : '';
+        const metaDescMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i) || html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*name=["']description["'][^>]*>/i);
+        const metaDesc = metaDescMatch ? metaDescMatch[1] : '';
+        const htmlSnippet = pageTitle || metaDesc ? `Title: ${pageTitle}\nDescription: ${metaDesc}` : html.slice(0, 1000);
 
-        // 3. Classify Business Mode & target queryLanguage
-        const { mode, queryLanguage } = await classifyBusinessMode(businessName, category, city);
-        console.log(`Classified business ${businessName} as mode: ${mode}, language: ${queryLanguage}`);
+        // 2. Classify Business Profile & Services
+        const profile = await analyzeBusinessProfile(domain, fetchUrl, description, htmlSnippet);
+        console.log(`Analyzed business ${profile.businessName} as mode: ${profile.businessMode}, area: ${profile.areaScope}, language: ${profile.queryLanguage}`);
 
-        // 3b. Generate mode-aware search queries (16 total)
-        const allQueries = await generateModeQueries(businessName, category, city, mode, queryLanguage);
+        // 3. Generate mode-aware search queries (4 total)
+        const allQueries = await generateModeQueries(profile);
 
         // 4. Citation Checking with search-grounded Gemini Flash
         const searchModel = genAI.getGenerativeModel({
@@ -490,7 +447,7 @@ export async function GET(request: NextRequest) {
           competitors,
           topFixes,
           intentCategories,
-          confidence,
+          confidence: profile.confidence,
           isBlocked
         };
 

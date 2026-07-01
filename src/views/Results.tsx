@@ -30,6 +30,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
   const [scanId, setScanId] = useState<string | null>(report.id || null);
   const [email, setEmail] = useState('');
   const [expandedFixes, setExpandedFixes] = useState(false);
+  const [showPassingChecks, setShowPassingChecks] = useState(false);
   const [origin, setOrigin] = useState<string>('');
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -233,29 +234,93 @@ export default function Results({ report, description, onRescan, onNavigateToPri
           </div>
         )}
 
-        {/* ZONE 1 - AI READINESS AUDIT */}
+        {/* ZONE 1 - TECHNICAL READINESS */}
         <section className="zone-1">
-          <p className="section-header-uppercase">
-            Technical Readiness
-          </p>
+          <p className="section-header-uppercase">Technical Readiness</p>
 
           {isBlocked ? (
             <div style={{ padding: '16px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '6px', color: '#b45309', marginBottom: '16px', fontSize: '0.95rem', lineHeight: '1.5' }}>
               <strong>Technical checks unavailable</strong> — this site uses bot protection (e.g. Cloudflare, Datadome). AI crawlers may face the same restrictions, which can reduce citation rates. Adding an <code>llms.txt</code> file gives AI tools a direct summary without needing to crawl.
             </div>
           ) : (
-            <ul className="audit-list">
-              {technicalChecks.length > 0 ? (
-                technicalChecks.map((check) => (
-                  <li key={check.id} className="audit-item">
-                    {getStatusIcon(check.status)}
-                    <span className="audit-name">{check.name}</span>
-                  </li>
-                ))
-              ) : (
-                <li className="audit-item" style={{ fontFamily: 'var(--font-mono)' }}>Loading technical checks...</li>
+            <div className="tech-checks-wrapper">
+              {/* Problems first — failing and warning checks */}
+              {technicalChecks.length > 0 ? (() => {
+                const problems = technicalChecks.filter(c => c.status !== 'pass');
+                const passing = technicalChecks.filter(c => c.status === 'pass');
+
+                // Inline fix hint map per check ID
+                const inlineHints: Record<string, { label: string; hint: string }> = {
+                  schema: { label: '⚡ Quick win', hint: 'Add JSON-LD schema to your homepage — copy a template and paste it into your site\'s <head>. Takes ~20 min.' },
+                  llms: { label: '⚡ Quick win', hint: 'Create an llms.txt file at yoursite.com/llms.txt listing your business name, services, and location. Takes ~10 min.' },
+                  robots: { label: '📋 This week', hint: 'Review your robots.txt — make sure you\'re not blocking AI crawlers like GPTBot or Google-Extended.' },
+                  h1: { label: '⚡ Quick win', hint: 'Your page is missing an H1 tag. Add one that clearly states what you do and where — e.g. "Dentist in Berlin-Charlottenburg".' },
+                  contact: { label: '⚡ Quick win', hint: 'Add a phone number and address directly on the page in plain text — not just in an image or contact form.' },
+                  https: { label: '👷 Needs a developer', hint: 'Your site isn\'t on HTTPS. Ask your hosting provider to enable SSL — most offer this free.' },
+                  faq: { label: '📋 This week', hint: 'Add a FAQ section answering common questions about your services. AI tools love structured Q&A content.' },
+                };
+
+                return (
+                  <>
+                    {problems.length === 0 ? (
+                      <div className="tech-all-pass-banner">
+                        <span className="tech-all-pass-icon">✓</span>
+                        <span>All {passing.length} technical checks passed — no issues found.</span>
+                      </div>
+                    ) : (
+                      <div className="tech-problems-list">
+                        {problems.map((check) => {
+                          const hint = inlineHints[check.id];
+                          return (
+                            <div key={check.id} className={`tech-problem-card ${check.status}`}>
+                              <div className="tech-problem-header">
+                                <span className={`tech-problem-icon ${check.status}`}>
+                                  {check.status === 'warning' ? '⚠' : '✗'}
+                                </span>
+                                <div className="tech-problem-meta">
+                                  <span className="tech-problem-name">{check.name}</span>
+                                  <span className="tech-problem-desc">{check.description}</span>
+                                </div>
+                              </div>
+                              {hint && (
+                                <div className="tech-inline-hint">
+                                  <span className="tech-hint-tier">{hint.label}</span>
+                                  <span className="tech-hint-text">{hint.hint}</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Collapsible passing checks */}
+                    {passing.length > 0 && (
+                      <div className="tech-passing-toggle-wrapper">
+                        <button
+                          className="tech-passing-toggle"
+                          onClick={() => setShowPassingChecks(p => !p)}
+                        >
+                          {showPassingChecks ? '▲ Hide' : '▼ Show'} {passing.length} passing checks
+                        </button>
+                        {showPassingChecks && (
+                          <ul className="tech-passing-list">
+                            {passing.map(check => (
+                              <li key={check.id} className="tech-passing-item">
+                                <span className="status-icon pass">✓</span>
+                                <span className="audit-name">{check.name}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })() : (
+                <div className="audit-item" style={{ fontFamily: 'var(--font-mono)' }}>Loading technical checks...</div>
               )}
-            </ul>
+            </div>
           )}
         </section>
 
@@ -377,57 +442,84 @@ export default function Results({ report, description, onRescan, onNavigateToPri
           </section>
         )}
 
-        {/* ZONE 4 - FIX LIST */}
+        {/* ZONE 4 - ACTION PLAN */}
         {!isScanning && (
           <section className="zone-4 animate-slide-up">
-            <p className="section-header-uppercase">
-              Your action plan
-            </p>
-            
-            <p className="section-desc" style={{ marginBottom: '20px' }}>These three changes will have the most impact:</p>
+            <p className="section-header-uppercase">Your action plan</p>
 
-            <div className="fix-list">
-              {(topFixes || []).slice(0, 3).map((fix, idx) => (
-                <div key={fix.id} className="action-plan-item">
-                  <span className="action-plan-step-num">
-                    {idx + 1}
-                  </span>
-                  <div className="action-plan-content">
-                    <h4>{fix.title}</h4>
-                    <p>{fix.description}</p>
-                    <div style={{ display: 'flex', alignItems: 'center', marginTop: '4px' }}>
-                      <a
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          alert('Action details and downloads coming soon with Pro monitoring!');
-                        }}
-                        className="action-plan-download-btn"
-                      >
-                        {fix.fixAction === 'llms' && 'Download llms.txt →'}
-                        {fix.fixAction === 'robots' && 'Download updated robots.txt →'}
-                        {fix.fixAction === 'schema' && 'See how to add this →'}
-                        {fix.fixAction === 'link' && 'Read guide →'}
-                      </a>
-                      <span className="action-plan-time-label">
-                        {fix.timeEstimate.replace(/^takes\s+/i, 'Takes ')}
-                      </span>
+            {topFixes.length === 0 ? (
+              <div style={{ color: '#94a3b8', fontSize: '0.9rem', fontFamily: 'var(--font-mono)' }}>Generating recommendations...</div>
+            ) : (
+              <div className="action-plan-tiers">
+                {/* Tier labels and their fixes */}
+                {(['quick_win', 'this_week', 'hire_dev'] as const).map(tier => {
+                  const tierFixes = topFixes.filter((f: any) => f.tier === tier);
+                  const tierMeta: Record<string, { icon: string; label: string; sublabel: string; color: string; bg: string; border: string }> = {
+                    quick_win: {
+                      icon: '⚡',
+                      label: 'Do it now',
+                      sublabel: 'Under 1 hour — you can do this yourself today',
+                      color: '#065f46',
+                      bg: '#ecfdf5',
+                      border: '#a7f3d0',
+                    },
+                    this_week: {
+                      icon: '📋',
+                      label: 'This week',
+                      sublabel: 'A few hours of your own time — no developer needed',
+                      color: '#1e40af',
+                      bg: '#eff6ff',
+                      border: '#bfdbfe',
+                    },
+                    hire_dev: {
+                      icon: '👷',
+                      label: 'Needs a developer',
+                      sublabel: 'Hand this to your web developer or agency',
+                      color: '#6b21a8',
+                      bg: '#faf5ff',
+                      border: '#e9d5ff',
+                    },
+                  };
+                  const meta = tierMeta[tier];
+                  if (tierFixes.length === 0) return null;
+                  return (
+                    <div key={tier} className="action-tier-block" style={{ borderColor: meta.border }}>
+                      <div className="action-tier-header" style={{ background: meta.bg, borderColor: meta.border }}>
+                        <span className="action-tier-icon">{meta.icon}</span>
+                        <div>
+                          <span className="action-tier-label" style={{ color: meta.color }}>{meta.label}</span>
+                          <span className="action-tier-sublabel">{meta.sublabel}</span>
+                        </div>
+                      </div>
+                      <div className="action-tier-fixes">
+                        {tierFixes.map((fix: any, idx: number) => (
+                          <div key={fix.id || idx} className="action-fix-row">
+                            <div className="action-fix-body">
+                              <span className="action-fix-title">{fix.title}</span>
+                              <span className="action-fix-desc">{fix.description}</span>
+                            </div>
+                            <div className="action-fix-footer">
+                              <span className="action-fix-time">⏱ {fix.timeEstimate}</span>
+                              {fix.impact && (
+                                <span className={`action-fix-impact impact-${fix.impact?.toLowerCase()}`}>{fix.impact} impact</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  );
+                })}
+
+                {/* Expectation-setting footer note */}
+                <div className="action-plan-expectation">
+                  <span className="action-plan-expectation-icon">ℹ️</span>
+                  <p>
+                    AI citation rates typically take <strong>4–8 weeks</strong> to reflect content and structural changes. 
+                    The quick wins above are the fastest path to being picked up in new AI searches.
+                  </p>
                 </div>
-              ))}
-            </div>
-            
-            {topFixes.length > 3 && (
-              <>
-                <p className="section-header-uppercase" style={{ marginTop: '32px' }}>
-                  Further improvements
-                </p>
-                
-                <button className="expand-fixes-teal-link" onClick={() => setExpandedFixes(!expandedFixes)}>
-                  + {topFixes.length - 3} more
-                </button>
-              </>
+              </div>
             )}
           </section>
         )}

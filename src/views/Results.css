@@ -718,3 +718,320 @@
   margin: 2px 0 0 0;
   line-height: 1.4;
 }
+
+/* ============================================
+   TECHNICAL READINESS — REDESIGNED
+   ============================================ */
+
+.tech-checks-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* All-pass banner */
+.tech-all-pass-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 0.9rem;
+  color: #065f46;
+  font-family: var(--font-sans);
+}
+.tech-all-pass-icon {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #059669;
+}
+
+/* Problem cards */
+.tech-problems-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tech-problem-card {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid;
+}
+
+.tech-problem-card.warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.tech-problem-card.fail {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.tech-problem-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.tech-problem-icon {
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.tech-problem-icon.warning { color: #d97706; }
+.tech-problem-icon.fail { color: #dc2626; }
+
+.tech-problem-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.tech-problem-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+  font-family: var(--font-sans);
+}
+
+.tech-problem-desc {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-family: var(--font-sans);
+  line-height: 1.4;
+}
+
+/* Inline fix hint */
+.tech-inline-hint {
+  border-top: 1px dashed;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tech-problem-card.warning .tech-inline-hint {
+  border-color: #fde68a;
+  background: rgba(254, 243, 199, 0.5);
+}
+.tech-problem-card.fail .tech-inline-hint {
+  border-color: #fca5a5;
+  background: rgba(254, 226, 226, 0.4);
+}
+
+.tech-hint-tier {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #374151;
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+}
+
+.tech-hint-text {
+  font-size: 0.83rem;
+  color: #374151;
+  line-height: 1.5;
+  font-family: var(--font-sans);
+}
+
+/* Collapsible passing checks */
+.tech-passing-toggle-wrapper {
+  margin-top: 8px;
+}
+
+.tech-passing-toggle {
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+  transition: color 0.15s;
+}
+
+.tech-passing-toggle:hover {
+  color: #6b7280;
+}
+
+.tech-passing-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tech-passing-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-family: var(--font-mono);
+}
+
+/* ============================================
+   ACTION PLAN — REDESIGNED (TIERED)
+   ============================================ */
+
+.action-plan-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.action-tier-block {
+  border: 1px solid;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.action-tier-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid;
+}
+
+.action-tier-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.action-tier-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  line-height: 1.2;
+}
+
+.action-tier-sublabel {
+  display: block;
+  font-size: 0.78rem;
+  color: #6b7280;
+  font-family: var(--font-sans);
+  margin-top: 1px;
+}
+
+.action-tier-fixes {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.action-fix-row {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fff;
+}
+
+.action-fix-row:last-child {
+  border-bottom: none;
+}
+
+.action-fix-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.action-fix-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+  font-family: var(--font-sans);
+}
+
+.action-fix-desc {
+  font-size: 0.82rem;
+  color: #6b7280;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+}
+
+.action-fix-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.action-fix-time {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-family: var(--font-mono);
+}
+
+.action-fix-impact {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-family: var(--font-sans);
+}
+
+.action-fix-impact.impact-critical {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.action-fix-impact.impact-high {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.action-fix-impact.impact-medium {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+/* Expectation footer */
+.action-plan-expectation {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 4px;
+}
+
+.action-plan-expectation-icon {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.action-plan-expectation p {
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+.action-plan-expectation strong {
+  color: #374151;
+}
+
