@@ -20,7 +20,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
   const [compositeScore, setCompositeScore] = useState<number>(report.compositeScore || 0);
   const [citationRate, setCitationRate] = useState<number>(report.citationRate || 0);
   const [citedCount, setCitedCount] = useState<number>(report.citedCount || 0);
-  const [totalCount, setTotalCount] = useState<number>(report.totalCount || 16);
+  const [totalCount, setTotalCount] = useState<number>(report.totalCount || 4);
   const [competitors, setCompetitors] = useState<CompetitorGap[]>(report.competitors || []);
   const [topFixes, setTopFixes] = useState<FixItem[]>(report.topFixes || []);
   const [confidence, setConfidence] = useState<string>(report.confidence || 'high');
@@ -300,17 +300,17 @@ export default function Results({ report, description, onRescan, onNavigateToPri
                 <>
                   <p className="citation-summary">Results: cited in {citedCount} of {totalCount} searches</p>
                   <ul className="intent-list">
-                    {(intentCategories || []).map(cat => (
-                      <li key={cat.name} className="intent-item">
-                        <span className="intent-name">{cat.name}</span>
-                        <div className="intent-bars">
-                          {Array.from({length: cat.total}).map((_, i) => (
-                            <span key={i} className={`intent-bar ${i < (cat.cited) ? 'filled' : ''}`}></span>
-                          ))}
-                        </div>
-                        <span className="intent-stats">{cat.cited}/{cat.total} cited</span>
-                      </li>
-                    ))}
+                    {(intentCategories || []).map(cat => {
+                      const isCited = cat.cited >= 1;
+                      return (
+                        <li key={cat.name} className="intent-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                          <span className="intent-name" style={{ fontWeight: 500, color: '#334155' }}>{cat.name}</span>
+                          <span className={`badge ${isCited ? 'badge-easy' : 'badge-hard'}`} style={{ textTransform: 'none', padding: '4px 12px' }}>
+                            {isCited ? '✓ Cited' : '✗ Not Cited'}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </>
               )}

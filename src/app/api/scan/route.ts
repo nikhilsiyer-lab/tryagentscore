@@ -138,29 +138,29 @@ async function generateModeQueries(businessName: string, category: string, locat
   let prompt = '';
   
   if (mode === "local") {
-    prompt = `Generate 16 search queries a real customer would use to find ${businessName}.
+    prompt = `Generate exactly 4 search queries a real customer would use to find ${businessName}.
 Use hyper-local phrasing — include the specific city and district (like "${location}") where relevant.
 Write queries in language: "${queryLanguage}".
 Focus on: neighbourhood searches, "near me" intent, local recommendations.
 Example: "Zahnarzt Charlottenburg Berlin empfehlung"`;
   } else if (mode === "national") {
-    prompt = `Generate 16 search queries a real customer would use to find ${businessName}.
+    prompt = `Generate exactly 4 search queries a real customer would use to find ${businessName}.
 Use country-level phrasing. Write queries in language: "${queryLanguage}".
 Focus on: national comparisons, category searches within the country.
 Example: "beste Online-Apotheke Deutschland"`;
   } else {
-    prompt = `Generate 16 search queries a real customer would use to find ${businessName}.
+    prompt = `Generate exactly 4 search queries a real customer would use to find ${businessName}.
 Drop location entirely. Write queries in English.
 Focus on: feature comparisons, category searches, tool alternatives.
 Example: "best AI citation tracking tool" or "Semrush alternative for AI visibility"`;
   }
 
-  prompt += `\n\nReturn ONLY a JSON object with a key "queries" mapping to a flat array of exactly 16 strings.
-Distribute the 16 queries exactly as follows:
-- The first 4 must be Informational queries.
-- The next 4 must be Local/National category queries.
-- The next 4 must be Comparison queries (comparing ${businessName} with other options).
-- The final 4 must be Direct queries searching for ${businessName} directly.`;
+  prompt += `\n\nReturn ONLY a JSON object with a key "queries" mapping to a flat array of exactly 4 strings.
+The 4 queries must represent these categories in order:
+1. Informational — a general question about the business type
+2. Local intent — a location-specific search (or feature-focused if global mode)
+3. Comparison — a head-to-head or alternatives search
+4. Direct — a brand-specific query about ${businessName}`;
 
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -172,29 +172,17 @@ Distribute the 16 queries exactly as follows:
       new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
     ]) as any;
     const data = JSON.parse(result.response.text().trim());
-    if (Array.isArray(data.queries) && data.queries.length === 16) {
+    if (Array.isArray(data.queries) && data.queries.length === 4) {
       return data.queries;
     }
-    throw new Error('Did not return 16 queries');
+    throw new Error('Did not return 4 queries');
   } catch (e) {
     console.error('Failed to generate mode-aware queries, falling back:', e);
-    // Generic fallback mapping to 4 of each category
+    // Generic fallback mapping to 1 of each category
     return [
       `What is the best ${category} platform or service?`,
-      `Top ${category} sites recommended by experts`,
-      `Most popular ${category} websites`,
-      `Compare top ${category} providers`,
       `Which ${category} service should I use in ${location}?`,
-      `Best options for ${category} online`,
-      `Best ${category} near ${location}`,
-      `Top rated ${category} in ${location}`,
       `What are the best ${businessName} alternatives?`,
-      `${businessName} vs competitors – which is best?`,
-      `Compare ${businessName} with other ${category} providers`,
-      `Alternative options to ${businessName}`,
-      `What does ${businessName} offer?`,
-      `${businessName} features and pricing`,
-      `How does ${businessName} work?`,
       `Is ${businessName} a good ${category} service?`
     ];
   }
@@ -477,18 +465,18 @@ export async function GET(request: NextRequest) {
           console.error('Failed to save scan snapshot to Supabase:', e);
         }
 
-        // Calculate category breakdowns from the 16 actual query results
-        // 0-3 (4 informational), 4-7 (4 local), 8-11 (4 comparison), 12-15 (4 direct)
-        const infoCount = queryResults.slice(0, 4).filter(r => r.cited).length;
-        const localCount = queryResults.slice(4, 8).filter(r => r.cited).length;
-        const compCount = queryResults.slice(8, 12).filter(r => r.cited).length;
-        const directCount = queryResults.slice(12, 16).filter(r => r.cited).length;
+        // Calculate category breakdowns from the 4 actual query results
+        // Index 0: informational, Index 1: local, Index 2: comparison, Index 3: direct
+        const infoCount = queryResults.slice(0, 1).filter(r => r.cited).length;
+        const localCount = queryResults.slice(1, 2).filter(r => r.cited).length;
+        const compCount = queryResults.slice(2, 3).filter(r => r.cited).length;
+        const directCount = queryResults.slice(3, 4).filter(r => r.cited).length;
 
         const intentCategories = [
-          { name: 'Informational queries', cited: infoCount, total: 4 },
-          { name: 'Local intent queries', cited: localCount, total: 4 },
-          { name: 'Comparison queries', cited: compCount, total: 4 },
-          { name: 'Direct queries', cited: directCount, total: 4 }
+          { name: 'Informational queries', cited: infoCount, total: 1 },
+          { name: 'Local intent queries', cited: localCount, total: 1 },
+          { name: 'Comparison queries', cited: compCount, total: 1 },
+          { name: 'Direct queries', cited: directCount, total: 1 }
         ];
 
         const report = {
