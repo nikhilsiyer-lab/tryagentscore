@@ -448,7 +448,16 @@ export async function GET(request: NextRequest) {
           topFixes,
           intentCategories,
           confidence: profile.confidence,
-          isBlocked
+          isBlocked,
+          profile: {
+            businessName: profile.businessName,
+            primaryCategory: profile.primaryCategory,
+            topServices: profile.topServices || [],
+            location: profile.location,
+            queryLanguage: profile.queryLanguage,
+            businessMode: profile.businessMode,
+            areaScope: profile.areaScope,
+          }
         };
 
         sendEvent('scan_complete', report);

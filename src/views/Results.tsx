@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { ScanReport, CheckResult } from '../lib/scanEngine';
+import ActionDraft, { type BusinessProfile } from '../components/ActionDraft';
 import './Results.css';
 
 interface ResultsProps {
@@ -31,6 +32,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
   const [email, setEmail] = useState('');
   const [expandedFixes, setExpandedFixes] = useState(false);
   const [showPassingChecks, setShowPassingChecks] = useState(false);
+  const [profile, setProfile] = useState<BusinessProfile | null>((report as any).profile || null);
   const [origin, setOrigin] = useState<string>('');
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -76,6 +78,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
       if (data.intentCategories) setIntentCategories(data.intentCategories);
       if (data.confidence) setConfidence(data.confidence);
       if (data.isBlocked !== undefined) setIsBlocked(data.isBlocked);
+      if (data.profile) setProfile(data.profile);
       setScanId(data.id || null);
       setIsScanning(false);
       eventSource.close();
@@ -523,8 +526,46 @@ export default function Results({ report, description, onRescan, onNavigateToPri
             )}
           </section>
         )}
+        {/* ZONE 4.5 — AI FIX GENERATORS */}
+        {!isScanning && profile && (
+          <section className="zone-4 animate-slide-up">
+            <div className="generators-section-header">
+              <p className="section-header-uppercase">Generate the fix content</p>
+              <p className="generators-section-subtitle">
+                Select any issue below — we'll generate a ready-to-use draft in seconds.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {(['llms', 'schema', 'robots', 'meta', 'faq'] as const).map(type => {
+                // Map generator type to the corresponding technical check id
+                const checkIdMap: Record<string, string> = {
+                  llms: 'llms',
+                  schema: 'schema',
+                  robots: 'robots',
+                  meta: 'meta-title',
+                  faq: 'faq',
+                };
+                const checkId = checkIdMap[type];
+                const check = technicalChecks.find(c => c.id === checkId);
+                const detected = check ? check.status !== 'pass' : false;
+
+                return (
+                  <ActionDraft
+                    key={type}
+                    type={type}
+                    profile={profile}
+                    domain={report.domain}
+                    detected={detected}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* PRO MONITORING CTA — bottom of page */}
+
         {!isScanning && (
           <section className="zone-5 animate-slide-up">
             <div className="inline-email-capture" style={{ textAlign: 'center', padding: '32px 24px' }}>
