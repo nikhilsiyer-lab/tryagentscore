@@ -19,6 +19,7 @@ function getGroq() {
   return groqInstance;
 }
 
+export const runtime = 'edge';
 export const maxDuration = 60; // Allow function to run up to 60s for Hobby tier
 export const dynamic = 'force-dynamic';
 
@@ -249,7 +250,7 @@ async function generateFixSuggestions(htmlContent: string) {
         ],
         response_format: { type: 'json_object' }
       }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 6000))
     ]) as any;
     
     const data = JSON.parse(response.choices[0]?.message?.content || '{}');
@@ -492,7 +493,7 @@ export async function GET(request: NextRequest) {
           try {
             const res = await Promise.race([
               searchModel.generateContent(top10Query),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000))
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
             ]) as any;
             const responseText: string = res.response.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || res.response.text() || '';
             return {
@@ -512,7 +513,7 @@ export async function GET(request: NextRequest) {
           try {
             const res = await Promise.race([
               searchModel.generateContent(queryText),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000))
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
             ]) as any;
             
             const candidate = res.response.candidates?.[0];
