@@ -223,13 +223,13 @@ export default function Home({ onStartScan }: HomeProps) {
       <section className="zone-problem">
         <div className="problem-content-wrapper">
           <p>
-            Word of mouth still matters — but the verification step has changed. Before calling, potential clients now ask ChatGPT or Google AI: <em>"Is [Business Name] any good?"</em> or <em>"Who's the best [service] near me?"</em>
+            Word of mouth still matters — but the verification step has changed. Before calling, potential clients now ask ChatGPT or Perplexity: <em>"Is Vishranth & Karthik a good dental clinic?"</em> or <em>"Who's the best dentist near me?"</em>
           </p>
           <p>
             Those tools pick a handful of businesses to recommend. Many good businesses — even well-reviewed ones — don't appear at all.
           </p>
           <p className="problem-highlight">
-            AgentScore shows you what AI says about your business — and exactly what to fix.
+            AgentScore shows you exactly where you stand — and what to fix.
           </p>
         </div>
       </section>
