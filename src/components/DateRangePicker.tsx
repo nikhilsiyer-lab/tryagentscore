@@ -67,6 +67,33 @@ export default function DateRangePicker() {
     }
   };
 
+  const handlePreset = (preset: '60min' | 'today' | 'yesterday') => {
+    const now = new Date();
+    let startVal = '';
+    let endVal = '';
+
+    if (preset === '60min') {
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      startVal = oneHourAgo.toISOString();
+      endVal = now.toISOString();
+    } else if (preset === 'today') {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      startVal = todayStart.toISOString();
+      endVal = now.toISOString();
+    } else if (preset === 'yesterday') {
+      const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
+      const yesterdayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
+      startVal = yesterdayStart.toISOString();
+      endVal = yesterdayEnd.toISOString();
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    params.set('start', startVal);
+    params.set('end', endVal);
+    router.push(`/admin?${params.toString()}`);
+    setIsOpen(false);
+  };
+
   const handleApply = () => {
     const params = new URLSearchParams(window.location.search);
     if (startDate) {
@@ -194,6 +221,28 @@ export default function DateRangePicker() {
             color: '#e2e8f0'
           }}
         >
+          {/* Preset Shortcuts */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid rgba(71, 85, 105, 0.3)', paddingBottom: '12px' }}>
+            <button 
+              onClick={() => handlePreset('60min')}
+              style={{ flex: 1, padding: '6px 0', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#cbd5e1', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Last 60m
+            </button>
+            <button 
+              onClick={() => handlePreset('today')}
+              style={{ flex: 1, padding: '6px 0', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#cbd5e1', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Today
+            </button>
+            <button 
+              onClick={() => handlePreset('yesterday')}
+              style={{ flex: 1, padding: '6px 0', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#cbd5e1', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Yesterday
+            </button>
+          </div>
+
           {/* Calendar header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc' }}>{currentMonthYear}</span>
