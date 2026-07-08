@@ -57,9 +57,7 @@ export default function App() {
     if (sharedUrl) {
       setTargetUrl(sharedUrl);
       if (desc) setDescription(desc);
-      const generatedReport = generateReport(sharedUrl);
-      setReport(generatedReport);
-      setView('results');
+      setView('scanning');
     }
     const go = params.get('go');
     if (go === 'pricing') {
