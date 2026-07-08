@@ -2,7 +2,7 @@ import './StaticPages.css';
 
 export default function Terms() {
   return (
-    <div className="static-page-container animate-fade-in">
+    <div className="static-page-container animate-fade-in" style={{ paddingBottom: '60px' }}>
       <div className="static-header">
         <span className="static-badge">Terms of Service</span>
         <h1>Terms of Use</h1>
@@ -16,29 +16,36 @@ export default function Terms() {
 
       <div className="static-card-grid" style={{ marginTop: '0' }}>
         <div className="static-card">
-          <h2>Service Availability</h2>
+          <h2>1. Service Scope & Reliability</h2>
           <p>
-            This tool is provided on an "as-is" and "as-available" basis. While we strive to model AI recommendations accurately, AI engine responses fluctuate, and our scores represent best-effort analysis that may not reflect every AI search experience.
+            This tool is provided on an "as-is" and "as-available" basis. While we strive to model AI recommendations accurately, AI engine responses fluctuate and change, and our scores represent a best-effort analysis that is not stable over time.
           </p>
         </div>
 
         <div className="static-card">
-          <h2>Acceptable Use</h2>
+          <h2>2. Subscription Billing & Refund Policy</h2>
           <p>
-            You agree to use this tool for standard scanning of websites you own, manage, or are interested in. Do not use automated scripts, scrapers, or bots to overload or abuse our testing infrastructure.
+            We offer recurring subscription billing at €14.99/month. You can cancel at any time via the Stripe Customer Portal in your Dashboard Settings. Cancellations take effect at the end of the current billing cycle.
           </p>
         </div>
 
         <div className="static-card">
-          <h2>Modifications to Service</h2>
+          <h2>3. Fair Use & Abuse Prevention</h2>
           <p>
-            We reserve the right to modify, suspend, or discontinue the service (or any part thereof) at any time with or without notice to ensure quality, performance, and security.
+            You agree to use this tool for standard scanning of websites you own or manage. Do not use automated scripts, scrapers, or bot farms to bypass the 3 free scans per day rate limit or reverse engineer our internal API endpoints.
+          </p>
+        </div>
+
+        <div className="static-card">
+          <h2>4. Data Opt-In & deletion</h2>
+          <p>
+            By using the tool, you agree that scanned domain performance metrics may be cached. You can request deletion of all metrics associated with your account or request domain opt-outs at any time.
           </p>
         </div>
       </div>
 
       <div style={{ textAlign: 'center', marginTop: '48px', color: 'var(--text-muted)' }}>
-        <p>Last updated: June 2026</p>
+        <p>Last updated: October 2026</p>
       </div>
     </div>
   );

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import type { ScanReport, CheckResult } from '../lib/scanEngine';
 import ActionDraft, { type BusinessProfile } from '../components/ActionDraft';
+import { createClient } from '../lib/supabase/client';
 import './Results.css';
 
 interface ResultsProps {
+  user: { email: string; isPro: boolean } | null;
   report: ScanReport;
   description?: string;
   onRescan: () => void;
@@ -15,7 +17,7 @@ interface StreamedQuery {
   cited: boolean;
 }
 
-export default function Results({ report, description, onRescan, onNavigateToPricing }: ResultsProps) {
+export default function Results({ user, report, description, onRescan, onNavigateToPricing }: ResultsProps) {
   const [prompts, setPrompts] = useState<StreamedQuery[]>([]);
   const [technicalChecks, setTechnicalChecks] = useState<CheckResult[]>(report.technicalChecks || []);
   const [compositeScore, setCompositeScore] = useState<number>(report.compositeScore || 0);
@@ -23,9 +25,13 @@ export default function Results({ report, description, onRescan, onNavigateToPri
   const [citedCount, setCitedCount] = useState<number>(report.citedCount || 0);
   const [totalCount, setTotalCount] = useState<number>(report.totalCount || 4);
   const [competitors, setCompetitors] = useState<CompetitorGap[]>(report.competitors || []);
+  const [directories, setDirectories] = useState<CompetitorGap[]>((report as any).directories || []);
   const [topFixes, setTopFixes] = useState<FixItem[]>(report.topFixes || []);
   const [confidence, setConfidence] = useState<string>(report.confidence || 'high');
   const [intentCategories, setIntentCategories] = useState<any[]>(report.intentCategories || []);
+  const [top10Result, setTop10Result] = useState<{ query: string; cited: boolean; coMentioned: string[] } | null>((report as any).top10Result || null);
+  const [top10Loading, setTop10Loading] = useState(false);
+  const [showAllFixes, setShowAllFixes] = useState(false);
   const [isBlocked, setIsBlocked] = useState<boolean>(report.isBlocked || (report.technicalChecks?.length > 0 && report.technicalChecks.every(c => c.status === 'warning')));
   const [isScanning, setIsScanning] = useState(!report.id);
   const [scanId, setScanId] = useState<string | null>(report.id || null);
@@ -35,6 +41,9 @@ export default function Results({ report, description, onRescan, onNavigateToPri
   const [profile, setProfile] = useState<BusinessProfile | null>((report as any).profile || null);
   const [origin, setOrigin] = useState<string>('');
   const [scanError, setScanError] = useState<string | null>(null);
+  const [claimEmail, setClaimEmail] = useState('');
+  const [claimSent, setClaimSent] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -51,7 +60,18 @@ export default function Results({ report, description, onRescan, onNavigateToPri
     setIsScanning(true);
     setScanError(null);
 
-    const eventSourceUrl = `/api/scan?url=${encodeURIComponent(report.url)}${description ? `&description=${encodeURIComponent(description)}` : ''}`;
+    const opts = report.options || {};
+    let queryParams = `?url=${encodeURIComponent(report.url)}`;
+    if (description || opts.description) queryParams += `&description=${encodeURIComponent(description || opts.description || '')}`;
+    if (opts.businessType) queryParams += `&businessType=${encodeURIComponent(opts.businessType)}`;
+    if (opts.entityType) queryParams += `&entityType=${encodeURIComponent(opts.entityType)}`;
+    if (opts.basedIn) queryParams += `&basedIn=${encodeURIComponent(opts.basedIn)}`;
+    if (opts.servesMarket) queryParams += `&servesMarket=${encodeURIComponent(opts.servesMarket)}`;
+    if (opts.targetClient) queryParams += `&targetClient=${encodeURIComponent(opts.targetClient)}`;
+    if (opts.honeypot) queryParams += `&honeypot=${encodeURIComponent(opts.honeypot)}`;
+    if (opts.isBot !== undefined) queryParams += `&isBot=${opts.isBot}`;
+
+    const eventSourceUrl = `/api/scan${queryParams}`;
     const eventSource = new EventSource(eventSourceUrl);
 
     eventSource.addEventListener('audit_complete', (e: any) => {
@@ -67,6 +87,16 @@ export default function Results({ report, description, onRescan, onNavigateToPri
       setPrompts(prev => [...prev, { text: data.query, cited: data.cited }]);
     });
 
+    eventSource.addEventListener('top10_start', () => {
+      setTop10Loading(true);
+    });
+
+    eventSource.addEventListener('top10_complete', (e: any) => {
+      const data = JSON.parse(e.data);
+      setTop10Result(data);
+      setTop10Loading(false);
+    });
+
     eventSource.addEventListener('scan_complete', (e: any) => {
       const data = JSON.parse(e.data);
       setCompositeScore(data.compositeScore);
@@ -74,6 +104,7 @@ export default function Results({ report, description, onRescan, onNavigateToPri
       setCitedCount(data.citedCount);
       setTotalCount(data.totalCount || 14);
       setCompetitors(data.competitors || []);
+      setDirectories(data.directories || []);
       setTopFixes(data.topFixes || []);
       if (data.intentCategories) setIntentCategories(data.intentCategories);
       if (data.confidence) setConfidence(data.confidence);
@@ -334,6 +365,9 @@ export default function Results({ report, description, onRescan, onNavigateToPri
           <p className="section-header-uppercase">
             AI Citation Test
           </p>
+          <p className="methodology-statement" style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '16px', lineHeight: '1.5' }}>
+            We ran 4 targeted searches, checked 12 technical signals, and mapped your top competitors — not just one AI answer.
+          </p>
 
           {isScanning ? (
             <div className="streaming-container">
@@ -370,6 +404,24 @@ export default function Results({ report, description, onRescan, onNavigateToPri
                   <ul className="intent-list">
                     {(intentCategories || []).map(cat => {
                       const isCited = cat.cited >= 1;
+                      const isBrandFailure = !isCited && cat.name === 'Brand recognition';
+                      
+                      if (isBrandFailure) {
+                        return (
+                          <li key={cat.name} className="intent-item brand-failure-callout" style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', marginTop: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                              <span className="intent-name" style={{ fontWeight: 600, color: '#991b1b' }}>{cat.name}</span>
+                              <span className="badge badge-hard" style={{ textTransform: 'none', padding: '4px 12px', background: '#fee2e2', color: '#b91c1c', border: 'none', fontWeight: 700 }}>
+                                ⚠ Not recognized by name
+                              </span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: '#991b1b', lineHeight: '1.4' }}>
+                              AI does not recognize your business when searched directly — this is more fundamental than not ranking for a topic.
+                            </p>
+                          </li>
+                        );
+                      }
+
                       return (
                         <li key={cat.name} className="intent-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
                           <span className="intent-name" style={{ fontWeight: 500, color: '#334155' }}>{cat.name}</span>
@@ -386,8 +438,120 @@ export default function Results({ report, description, onRescan, onNavigateToPri
           )}
         </section>
 
+        {/* TOP 10 LIST CHECK */}
+        {(top10Result || top10Loading || isScanning) && (
+          <section className="zone-2 animate-slide-up" style={{ marginTop: '8px' }}>
+            <p className="section-header-uppercase">
+              Top 10 list check
+            </p>
+
+            {/* FREE user: show a teaser only, result is locked */}
+            {!user?.isPro ? (
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: '20px 24px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '16px',
+                flexWrap: 'wrap',
+              }}>
+                <div>
+                  <p style={{ margin: '0 0 6px 0', fontWeight: 600, color: '#0f172a', fontSize: '0.95rem' }}>
+                    🔒 Does AI include you in a top 10 list?
+                  </p>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.88rem', lineHeight: 1.5, maxWidth: '460px' }}>
+                    AI models sometimes list businesses when asked for a "top 10" style recommendation — separately from normal questions. This is a different signal: a business can appear here but not in direct questions, or vice versa. Pro checks this and tells you whether you are included.
+                  </p>
+                </div>
+                <button
+                  onClick={onNavigateToPricing}
+                  style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                >
+                  Unlock with Pro →
+                </button>
+              </div>
+            ) : top10Loading || (isScanning && !top10Result) ? (
+              /* PRO + scanning in progress */
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px 24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#64748b', fontSize: '0.9rem' }}>
+                  <span className="pulse-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#6366f1', display: 'inline-block', animation: 'pulse 1.5s infinite' }}></span>
+                  Checking whether AI lists your business when asked for a top 10…
+                </div>
+                <p style={{ margin: '8px 0 0 0', fontSize: '0.82rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                  Query: {top10Result?.query || '—'}
+                </p>
+              </div>
+            ) : top10Result ? (
+              /* PRO + result ready */
+              <div style={{
+                background: top10Result.cited ? '#f0fdf4' : '#fef9f0',
+                border: `1px solid ${top10Result.cited ? '#86efac' : '#fcd34d'}`,
+                borderRadius: '10px',
+                padding: '20px 24px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: top10Result.cited ? '14px' : '10px' }}>
+                  <div>
+                    <p style={{ margin: '0 0 4px 0', fontWeight: 700, fontSize: '1rem', color: top10Result.cited ? '#15803d' : '#92400e' }}>
+                      {top10Result.cited
+                        ? '✓ Cited in a top 10 list'
+                        : '✗ Not cited in a top 10 list'}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', fontStyle: 'italic' }}>
+                      Query we tested: "{top10Result.query}"
+                    </p>
+                  </div>
+                  <span style={{
+                    background: top10Result.cited ? '#dcfce7' : '#fef3c7',
+                    color: top10Result.cited ? '#166534' : '#92400e',
+                    padding: '6px 14px',
+                    borderRadius: '20px',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {top10Result.cited ? 'Present' : 'Not present'}
+                  </span>
+                </div>
+
+                {top10Result.cited ? (
+                  <p style={{ margin: 0, fontSize: '0.88rem', color: '#166534', lineHeight: 1.5 }}>
+                    When we asked the AI to list the top 10 in your category, your business appeared. This means the AI is aware of you when prompted to be exhaustive — a meaningful signal even if you're not the default recommendation in everyday questions.
+                  </p>
+                ) : (
+                  <p style={{ margin: 0, fontSize: '0.88rem', color: '#78350f', lineHeight: 1.5 }}>
+                    When we explicitly asked the AI to list the top 10 in your category, your business did not appear. This is a separate and more fundamental visibility gap — even when the AI tries to be exhaustive, it does not include you. Fixing this typically requires building more online citations and structured content.
+                  </p>
+                )}
+
+                {/* Co-mentioned competitors — Pro only insight */}
+                {top10Result.coMentioned.length > 0 && (
+                  <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${top10Result.cited ? '#bbf7d0' : '#fde68a'}` }}>
+                    <p style={{ margin: '0 0 8px 0', fontSize: '0.82rem', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Also in that list
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {top10Result.coMentioned.map((name, i) => (
+                        <span key={i} style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: '6px', fontSize: '0.83rem', color: '#334155' }}>
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                    <p style={{ margin: '8px 0 0 0', fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                      These names appeared in the AI's response when asked to list the top 10. This is not a ranking — the order AI models give in list responses is not stable or reliable.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </section>
+        )}
+
         {/* ZONE 3 - COMPETITOR GAP */}
         {!isScanning && (
+
           <section className="zone-3 animate-slide-up">
             <p className="section-header-uppercase">
               Who AI is recommending instead
@@ -407,25 +571,66 @@ export default function Results({ report, description, onRescan, onNavigateToPri
               }}>
                 🎉 Great news — you appeared in every AI search we tested. No competitors displaced you in these queries.
               </div>
-            ) : competitors.length > 0 ? (
+            ) : competitors.length > 0 || directories.length > 0 ? (
               <>
-                <p className="section-desc">These businesses appeared in searches where<br/>you were not cited:</p>
-                <div className="competitors-container">
-                  {competitors.map((comp, i) => (
-                    <div key={i} className="competitor-row">
-                      <span className="competitor-domain-text">{comp.domain}</span>
-                      <div className="competitor-stat-wrapper">
-                        <div className="competitor-progress-bg">
-                          <div 
-                            className="competitor-progress-fill" 
-                            style={{ width: `${(comp.appearances / totalCount) * 100}%` }}
-                          />
-                        </div>
-                        <span className="competitor-count-text">{comp.appearances}/{totalCount}</span>
-                      </div>
+                {competitors.length > 0 && (
+                  <>
+                    <p className="section-desc">These businesses appeared in searches where<br/>you were not cited:</p>
+                    <div className="competitors-container">
+                      {competitors.map((comp, i) => {
+                        // Trim the source query to a concise one-liner (max 60 chars)
+                        const rawQuery: string = (comp as any).sourceQuery || '';
+                        const shortQuery = rawQuery
+                          .replace(/^(what is the |who is the |which is the |tell me the )/i, '')
+                          .trim()
+                          .slice(0, 60) + (rawQuery.length > 60 ? '…' : '');
+
+                        return (
+                          <div key={i} className="competitor-row">
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: 0 }}>
+                              <span className="competitor-domain-text">{comp.domain}</span>
+                              {shortQuery && (
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  Appeared when asked: "{shortQuery}"
+                                </span>
+                              )}
+                            </div>
+                            <div className="competitor-stat-wrapper">
+                              <div className="competitor-progress-bg">
+                                <div 
+                                  className="competitor-progress-fill" 
+                                  style={{ width: `${(comp.appearances / totalCount) * 100}%` }}
+                                />
+                              </div>
+                              <span className="competitor-count-text">{comp.appearances}/{totalCount}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
+                  </>
+                )}
+
+                {directories.length > 0 && (
+                  <div style={{ marginTop: '24px' }}>
+                    <p className="section-header-uppercase" style={{ color: '#64748b', fontSize: '0.75rem' }}>Directories & Platforms</p>
+                    <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '12px', lineHeight: '1.4' }}>
+                      AI frequently cites these directories — getting listed there may help.
+                    </p>
+                    <div className="competitors-container" style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}>
+                      {directories.map((dir, i) => (
+                        <div key={i} className="competitor-row" style={{ borderBottomColor: '#e2e8f0' }}>
+                          <span className="competitor-domain-text" style={{ color: '#475569' }}>{dir.domain}</span>
+                          <div className="competitor-stat-wrapper">
+                            <span className="competitor-count-text" style={{ background: '#e2e8f0', color: '#334155' }}>
+                              {dir.appearances}/{totalCount}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <div style={{
@@ -452,78 +657,117 @@ export default function Results({ report, description, onRescan, onNavigateToPri
 
             {topFixes.length === 0 ? (
               <div style={{ color: '#94a3b8', fontSize: '0.9rem', fontFamily: 'var(--font-mono)' }}>Generating recommendations...</div>
-            ) : (
-              <div className="action-plan-tiers">
-                {/* Tier labels and their fixes */}
-                {(['quick_win', 'this_week', 'hire_dev'] as const).map(tier => {
-                  const tierFixes = topFixes.filter((f: any) => f.tier === tier);
-                  const tierMeta: Record<string, { icon: string; label: string; sublabel: string; color: string; bg: string; border: string }> = {
-                    quick_win: {
-                      icon: '⚡',
-                      label: 'Do it now',
-                      sublabel: 'Under 1 hour — you can do this yourself today',
-                      color: '#065f46',
-                      bg: '#ecfdf5',
-                      border: '#a7f3d0',
-                    },
-                    this_week: {
-                      icon: '📋',
-                      label: 'This week',
-                      sublabel: 'A few hours of your own time — no developer needed',
-                      color: '#1e40af',
-                      bg: '#eff6ff',
-                      border: '#bfdbfe',
-                    },
-                    hire_dev: {
-                      icon: '👷',
-                      label: 'Needs a developer',
-                      sublabel: 'Hand this to your web developer or agency',
-                      color: '#6b21a8',
-                      bg: '#faf5ff',
-                      border: '#e9d5ff',
-                    },
-                  };
-                  const meta = tierMeta[tier];
-                  if (tierFixes.length === 0) return null;
-                  return (
-                    <div key={tier} className="action-tier-block" style={{ borderColor: meta.border }}>
-                      <div className="action-tier-header" style={{ background: meta.bg, borderColor: meta.border }}>
-                        <span className="action-tier-icon">{meta.icon}</span>
-                        <div>
-                          <span className="action-tier-label" style={{ color: meta.color }}>{meta.label}</span>
-                          <span className="action-tier-sublabel">{meta.sublabel}</span>
+            ) : (() => {
+              // Collect all fixes flattened across tiers
+              const tierOrder = ['quick_win', 'this_week', 'hire_dev'] as const;
+              const allFixes: any[] = [];
+              tierOrder.forEach(tier => {
+                topFixes.filter((f: any) => f.tier === tier).forEach(f => allFixes.push({ ...f, _tier: tier }));
+              });
+              // Fallback: if no tier set, treat all as ordered list
+              const fixList = allFixes.length > 0 ? allFixes : topFixes.map((f: any) => ({ ...f, _tier: 'quick_win' }));
+              const primaryFix = fixList[0];
+              const secondaryFixes = fixList.slice(1);
+
+              const tierMeta: Record<string, { icon: string; label: string; sublabel: string; color: string; bg: string; border: string }> = {
+                quick_win: { icon: '⚡', label: 'Do it now', sublabel: 'Under 1 hour — you can do this yourself today', color: '#065f46', bg: '#ecfdf5', border: '#a7f3d0' },
+                this_week: { icon: '📋', label: 'This week', sublabel: 'A few hours — no developer needed', color: '#1e40af', bg: '#eff6ff', border: '#bfdbfe' },
+                hire_dev: { icon: '👷', label: 'Needs a developer', sublabel: 'Hand this to your web developer', color: '#6b21a8', bg: '#faf5ff', border: '#e9d5ff' },
+              };
+
+              // Plain-language outcome labels for known fix types
+              const outcomeLabels: Record<string, { headline: string; plain: string }> = {
+                'llms': { headline: 'Help AI understand your business', plain: 'A simple text file on your website tells AI tools exactly what you do and where you are.' },
+                'schema': { headline: 'Make your details machine-readable', plain: 'Adds structured code so AI tools can reliably extract your name, address, and services.' },
+                'robots': { headline: 'Stop accidentally blocking AI crawlers', plain: 'Your settings file may be preventing AI tools from reading your site.' },
+                'faq': { headline: 'Answer the questions AI gets asked', plain: 'Adding FAQ content makes it more likely AI repeats your answers verbatim to users.' },
+                'meta-title': { headline: 'Improve how AI summarises your page', plain: 'Your page title and description are what AI tools use to describe you to users.' },
+              };
+
+              const getOutcome = (fix: any) => {
+                const key = Object.keys(outcomeLabels).find(k => fix.id?.includes(k) || fix.title?.toLowerCase().includes(k));
+                return key ? outcomeLabels[key] : null;
+              };
+
+              const renderFixCard = (fix: any, isPrimary: boolean) => {
+                const meta = tierMeta[fix._tier] || tierMeta.quick_win;
+                const outcome = getOutcome(fix);
+                return (
+                  <div
+                    key={fix.id}
+                    style={{
+                      border: `1px solid ${isPrimary ? '#6366f1' : meta.border}`,
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      background: isPrimary ? 'linear-gradient(135deg, #f5f3ff 0%, #eff6ff 100%)' : meta.bg,
+                      boxShadow: isPrimary ? '0 4px 20px rgba(99,102,241,0.1)' : 'none',
+                    }}
+                  >
+                    <div style={{ padding: isPrimary ? '20px 24px' : '14px 20px' }}>
+                      {isPrimary && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6366f1', background: '#e0e7ff', padding: '2px 8px', borderRadius: '4px' }}>Start here</span>
+                          <span style={{ fontSize: '0.8rem', color: '#6366f1' }}>{meta.icon} {meta.label}</span>
                         </div>
-                      </div>
-                      <div className="action-tier-fixes">
-                        {tierFixes.map((fix: any, idx: number) => (
-                          <div key={fix.id || idx} className="action-fix-row">
-                            <div className="action-fix-body">
-                              <span className="action-fix-title">{fix.title}</span>
-                              <span className="action-fix-desc">{fix.description}</span>
-                            </div>
-                            <div className="action-fix-footer">
-                              <span className="action-fix-time">⏱ {fix.timeEstimate}</span>
-                              {fix.impact && (
-                                <span className={`action-fix-impact impact-${fix.impact?.toLowerCase()}`}>{fix.impact} impact</span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                      )}
+                      {/* Plain-language headline */}
+                      <p style={{ margin: '0 0 4px 0', fontWeight: isPrimary ? 700 : 600, fontSize: isPrimary ? '1.05rem' : '0.95rem', color: '#0f172a' }}>
+                        {outcome ? outcome.headline : fix.title}
+                      </p>
+                      {/* One-liner plain explanation */}
+                      {outcome && (
+                        <p style={{ margin: '0 0 8px 0', fontSize: '0.88rem', color: '#475569', lineHeight: 1.5 }}>
+                          {outcome.plain}
+                        </p>
+                      )}
+                      {/* Technical detail secondary */}
+                      {outcome && (
+                        <p style={{ margin: '0 0 8px 0', fontSize: '0.8rem', color: '#94a3b8' }}>
+                          Technical detail: {fix.title}
+                        </p>
+                      )}
+                      {!outcome && (
+                        <p style={{ margin: '0 0 8px 0', fontSize: '0.88rem', color: '#475569', lineHeight: 1.5 }}>{fix.description}</p>
+                      )}
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>⏱ {fix.timeEstimate}</span>
+                        {fix.impact && <span style={{ fontSize: '0.8rem', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>{fix.impact} impact</span>}
+                        {!isPrimary && <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>{meta.icon} {meta.label}</span>}
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              };
 
-                {/* Expectation-setting footer note */}
-                <div className="action-plan-expectation">
-                  <span className="action-plan-expectation-icon">ℹ️</span>
-                  <p>
-                    AI citation rates typically take <strong>4–8 weeks</strong> to reflect content and structural changes. 
-                    The quick wins above are the fastest path to being picked up in new AI searches.
-                  </p>
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Primary fix — prominent */}
+                  {primaryFix && renderFixCard(primaryFix, true)}
+
+                  {/* Secondary fixes — collapsed by default */}
+                  {secondaryFixes.length > 0 && (
+                    <>
+                      {!showAllFixes ? (
+                        <button
+                          onClick={() => setShowAllFixes(true)}
+                          style={{ background: 'none', border: '1.5px dashed #e2e8f0', borderRadius: '10px', padding: '12px', color: '#64748b', fontSize: '0.88rem', cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.15s', width: '100%' }}
+                        >
+                          + {secondaryFixes.length} more issue{secondaryFixes.length > 1 ? 's' : ''} found — show all
+                        </button>
+                      ) : (
+                        secondaryFixes.map(fix => renderFixCard(fix, false))
+                      )}
+                    </>
+                  )}
+
+                  {/* Expectation-setting footer note */}
+                  <div className="action-plan-expectation">
+                    <span className="action-plan-expectation-icon">ℹ️</span>
+                    <p>AI citation rates typically take <strong>4–8 weeks</strong> to reflect changes. The fix above is the fastest path to being picked up in new AI searches.</p>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </section>
         )}
         {/* ZONE 4.5 — AI FIX GENERATORS */}
@@ -564,38 +808,86 @@ export default function Results({ report, description, onRescan, onNavigateToPri
           </section>
         )}
 
-        {/* PRO MONITORING CTA — bottom of page */}
+        {/* PRO WAITLIST CTA — bottom of page */}
 
         {!isScanning && (
           <section className="zone-5 animate-slide-up">
-            <div className="inline-email-capture" style={{ textAlign: 'center', padding: '32px 24px' }}>
+            <div className="inline-email-capture" style={{ textAlign: 'center', padding: '32px 24px', background: 'linear-gradient(to bottom right, #f8fafc, #f1f5f9)', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
               <div className="email-capture-inner">
-                <h4 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px' }}>Monitor your score weekly</h4>
-                <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.6' }}>
-                  Get notified when your AI citation rate improves — or drops.<br />
-                  Weekly monitoring, competitor tracking, and fix recommendations.
-                </p>
-                <button
-                  onClick={onNavigateToPricing}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '12px 28px',
-                    background: '#0f172a',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 600,
-                    fontSize: '0.95rem',
-                    cursor: 'pointer',
-                  }}
-                  onMouseOver={e => e.currentTarget.style.background = '#1e293b'}
-                  onMouseOut={e => e.currentTarget.style.background = '#0f172a'}
-                >
-                  Join the Pro waitlist →
-                </button>
-                <div style={{ marginTop: '12px' }}>
+                {user?.isPro ? (
+                  <>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px', color: '#0f172a' }}>Scan complete!</h4>
+                    <p style={{ fontSize: '0.95rem', color: '#475569', marginBottom: '24px', lineHeight: '1.6' }}>
+                      This scan has been saved to your dashboard. You can view trends and manage all tracked domains in your dashboard.
+                    </p>
+                  </>
+                ) : user ? (
+                  <>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px', color: '#0f172a' }}>Unlock Continuous AI Tracking</h4>
+                    <p style={{ fontSize: '0.95rem', color: '#475569', marginBottom: '24px', lineHeight: '1.6' }}>
+                      Upgrade to Pro to unlock unlimited scans, historical trend graphs, and priority processing.
+                    </p>
+                    <button
+                      onClick={onNavigateToPricing}
+                      style={{
+                        background: '#0f172a',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '10px 24px',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                        marginBottom: '12px'
+                      }}
+                    >
+                      Upgrade to Pro →
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px', color: '#0f172a' }}>Save this scan</h4>
+                    <p style={{ fontSize: '0.95rem', color: '#475569', marginBottom: '20px', lineHeight: '1.6' }}>
+                      Enter your email to create a free account and save your results.
+                    </p>
+                    {claimSent ? (
+                      <div style={{ background: '#ecfdf5', color: '#065f46', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem' }}>
+                        ✓ Magic link sent! Check your email to log in and save this scan.
+                      </div>
+                    ) : (
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!claimEmail || !scanId) return;
+                        try {
+                          await supabase.auth.signInWithOtp({
+                            email: claimEmail,
+                            options: {
+                              emailRedirectTo: `${origin || window.location.origin}/auth/callback?claim_scan=${scanId}`
+                            }
+                          });
+                          setClaimSent(true);
+                        } catch (err) {
+                          console.error(err);
+                          alert('Error sending magic link.');
+                        }
+                      }} style={{ display: 'flex', gap: '8px', marginBottom: '20px', justifyContent: 'center' }}>
+                        <input 
+                          type="email" 
+                          placeholder="your@email.com" 
+                          value={claimEmail}
+                          onChange={(e) => setClaimEmail(e.target.value)}
+                          required
+                          style={{ padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', width: '250px', fontSize: '0.95rem' }}
+                        />
+                        <button type="submit" style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
+                          Save
+                        </button>
+                      </form>
+                    )}
+                  </>
+                )}
+                <div>
                   <button
                     onClick={onRescan}
                     style={{ background: 'none', border: 'none', fontSize: '0.875rem', color: '#9ca3af', cursor: 'pointer' }}

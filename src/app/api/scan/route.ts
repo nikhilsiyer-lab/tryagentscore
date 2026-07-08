@@ -1,6 +1,7 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Groq } from 'groq-sdk';
+import { getCurrentUser } from '../../../lib/auth';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
@@ -88,7 +89,7 @@ No markdown, no extra text.`;
 }
 
 async function generateModeQueries(profile: any) {
-  const { businessName, primaryCategory, topServices = [], location, queryLanguage, businessMode, serviceBreadth } = profile;
+  const { businessName, primaryCategory, topServices = [], location, queryLanguage, businessMode, serviceBreadth, targetClient } = profile;
   
   let promptFormula = '';
   if (businessMode === 'local' || businessMode === 'national') {
@@ -99,6 +100,9 @@ async function generateModeQueries(profile: any) {
     } else {
       promptFormula = `Use this formula: {category} + {location}`;
     }
+  } else if (businessMode === 'global' && targetClient) {
+    // International with a defined target client — use audience-based phrasing not just geography
+    promptFormula = `Use this formula: {category} + "for ${targetClient}" — e.g. "best ${primaryCategory} for ${targetClient}". Do NOT use a city location. Focus on the client type.`;
   } else {
     promptFormula = `Use this formula: {category} or {feature} with no location (global SaaS style).`;
   }
@@ -177,6 +181,43 @@ async function generateNicheQueries(businessName: string, category: string, city
   }
 }
 
+async function generateTop10Query(profile: any): Promise<string> {
+  const { primaryCategory, location, queryLanguage, businessMode } = profile;
+  // For global/SaaS businesses there is no location-based list; use a category-scoped list instead
+  if (businessMode === 'global') {
+    return queryLanguage === 'en'
+      ? `Give me the top 10 best ${primaryCategory} tools or platforms`
+      : `Gib mir die top 10 besten ${primaryCategory} Tools`; // simple fallback; real i18n can extend this
+  }
+  // Local / national: use location
+  const loc = location && location !== 'Global' ? location : '';
+  const base = `Give me the top 10 ${primaryCategory}${loc ? ` in ${loc}` : ''}`;
+  return base;
+}
+
+/**
+ * Checks whether `domain` or `businessName` appears anywhere in the raw LLM text response.
+ * Deliberately does NOT extract a position — we only care about presence (yes/no).
+ */
+function checkTop10Citation(responseText: string, domain: string, businessName: string): { cited: boolean; coMentioned: string[] } {
+  const text = responseText.toLowerCase();
+  const domainRoot = domain.replace(/\.[^.]+$/, '').toLowerCase(); // e.g. "acme" from "acme.com"
+  const nameNorm = businessName.toLowerCase();
+  const cited = text.includes(domainRoot) || text.includes(nameNorm);
+
+  // Extract co-mentioned business-like proper nouns by grabbing numbered-list lines and stripping our own name
+  const lines = responseText.split('\n').filter(l => /^\d+[\.\)\-]/.test(l.trim()));
+  const coMentioned = lines
+    .map(l => l.replace(/^\d+[\.\)\-\s]+/, '').split(/[—:\-]/)[0].trim())
+    .filter(name => {
+      const n = name.toLowerCase();
+      return n.length > 2 && !n.includes(domainRoot) && !n.includes(nameNorm);
+    })
+    .slice(0, 5);
+
+  return { cited, coMentioned };
+}
+
 async function generateFixSuggestions(htmlContent: string) {
   try {
     const cleanText = cleanHtmlText(htmlContent).substring(0, 3000);
@@ -216,17 +257,112 @@ async function generateFixSuggestions(htmlContent: string) {
   }
 }
 
-
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
+  const searchParams = request.nextUrl.searchParams;
   const targetUrl = searchParams.get('url');
-  const description = searchParams.get('description') || undefined;
+  const description = searchParams.get('description') || '';
+  const businessType = searchParams.get('businessType') || '';
+  const entityType = searchParams.get('entityType') || '';
+  const basedIn = searchParams.get('basedIn') || '';
+  const servesMarket = searchParams.get('servesMarket') || 'local'; // 'local' | 'national' | 'international'
+  const targetClient = searchParams.get('targetClient') || '';
+  const honeypot = searchParams.get('honeypot') || '';
+  const isBotParam = searchParams.get('isBot') === 'true';
+
+  // 1. Guardrails: Bot Rejection
+  if (honeypot || isBotParam) {
+    return NextResponse.json({ error: 'Invalid request parameters' }, { status: 400 });
+  }
+
+  const user = await getCurrentUser();
+  const isPro = user?.isPro || false;
+
+  // 2. Guardrails: Tiered Throttle Skeleton (Bypassed for Pro users)
+  if (!isPro) {
+    // In a real app, read from Redis/DB: const budgetConsumed = await getDailyBudgetPercent();
+    const budgetConsumed = 0.5; // Mock 50% consumed
+    if (budgetConsumed > 0.9) {
+      // If we're at 90%+, reject real-time scan and route to batch queue
+      return NextResponse.json({ 
+        error: 'viral_spike',
+        message: 'We are experiencing a viral spike. Your scan has been queued for batch processing and results will be ready soon.'
+      }, { status: 429 });
+    }
+  }
 
   if (!targetUrl) {
-    return new Response(JSON.stringify({ error: 'URL parameter is required' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
+  }
+
+  let domain = targetUrl.replace(/^(https?:\/\/)?(www\.)?/, '');
+  domain = domain.split('/')[0];
+
+  const ip = request.headers.get('x-forwarded-for') || request.ip || '127.0.0.1';
+
+  // Quick Supabase check for Cache and IP Rate Limit
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  if (supabaseUrl && supabaseKey) {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    if (!isPro) {
+      // 1. IP Rate Limiting (max 3 per day for anonymous)
+      const { count } = await supabase
+        .from('scans')
+        .select('*', { count: 'exact', head: true })
+        .eq('anonymous_session_id', ip)
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      
+      if (count && count >= 3) {
+        return NextResponse.json({ error: 'Rate limit exceeded. Please create a free account to continue scanning.' }, { status: 429 });
+      }
+
+      // 2. Domain Caching (24h)
+      // We skip caching if user is Pro (they get fresh scans)
+      const { data: cachedScan } = await supabase
+        .from('scans')
+        .select('*')
+        .eq('domain', domain)
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      if (cachedScan) {
+        const encoder = new TextEncoder();
+        const customReadable = new ReadableStream({
+          async start(controller) {
+            const sendEvent = (event: string, data: any) => {
+              controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+            };
+            // Stream the cached result immediately
+            sendEvent('scan_complete', {
+              id: cachedScan.id,
+              domain: cachedScan.domain,
+              url: cachedScan.url,
+              compositeScore: cachedScan.composite_score,
+              citationRate: cachedScan.citation_rate,
+              citedCount: cachedScan.cited_count,
+              totalCount: cachedScan.total_count,
+              competitors: cachedScan.competitors || [],
+              directories: cachedScan.directories || [],
+              topFixes: cachedScan.top_fixes || [],
+              isBlocked: false,
+              top10Result: cachedScan.top10_result || {
+                query: `Give me the top 10 services related to ${cachedScan.domain}`,
+                cited: cachedScan.citation_rate > 30,
+                coMentioned: (cachedScan.competitors || []).slice(0, 3).map((c: any) => c.domain || c)
+              }
+            });
+            controller.close();
+          }
+        });
+        return new Response(customReadable, {
+          headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' },
+        });
+      }
+    }
   }
 
   // Check key requirements immediately
@@ -239,8 +375,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  let domain = targetUrl.replace(/^(https?:\/\/)?(www\.)?/, '');
-  domain = domain.split('/')[0];
+
 
   const encoder = new TextEncoder();
   const customReadable = new ReadableStream({
@@ -294,11 +429,30 @@ export async function GET(request: NextRequest) {
         const htmlSnippet = pageTitle || metaDesc ? `Title: ${pageTitle}\nDescription: ${metaDesc}` : html.slice(0, 1000);
 
         // 2. Classify Business Profile & Services
-        const profile = await analyzeBusinessProfile(domain, fetchUrl, description, htmlSnippet);
-        console.log(`Analyzed business ${profile.businessName} as mode: ${profile.businessMode}, area: ${profile.areaScope}, language: ${profile.queryLanguage}`);
+        const rawProfile = await analyzeBusinessProfile(domain, fetchUrl, description, htmlSnippet);
 
-        // 3. Generate mode-aware search queries (4 total)
-        const allQueries = await generateModeQueries(profile);
+        // Override LLM-guessed fields with explicit user-provided structured inputs
+        // These are hard anchors — if the user told us the entity type and location, trust that over page scraping
+        const profile = {
+          ...rawProfile,
+          // Entity type overrides primary category when provided
+          ...(entityType ? { primaryCategory: entityType } : {}),
+          // Location override — basedIn is the physical location
+          ...(basedIn ? { location: basedIn } : {}),
+          // Business mode driven by servesMarket toggle
+          ...(servesMarket === 'local' ? { businessMode: 'local' } : {}),
+          ...(servesMarket === 'national' ? { businessMode: 'national' } : {}),
+          ...(servesMarket === 'international' ? { businessMode: 'global' } : {}),
+          // Store target client for use in query generation
+          targetClient: targetClient || rawProfile.targetClient || '',
+        };
+        console.log(`Analyzed business ${profile.businessName} as mode: ${profile.businessMode}, area: ${profile.areaScope}, language: ${profile.queryLanguage}, overrides: entityType=${entityType}, basedIn=${basedIn}, servesMarket=${servesMarket}`);
+
+        // 3. Generate mode-aware search queries (4) + Top 10 list query (1) in parallel
+        const [allQueries, top10Query] = await Promise.all([
+          generateModeQueries(profile),
+          generateTop10Query(profile)
+        ]);
 
         // 4. Citation Checking with search-grounded Gemini Flash
         const searchModel = genAI.getGenerativeModel({
@@ -309,7 +463,25 @@ export async function GET(request: NextRequest) {
         let citedCount = 0;
         const competitorsMap = new Map<string, number>();
 
-        // Execute all queries in parallel to fit within Vercel's Hobby execution timeout limit (10s)
+        // Execute all 4 regular queries + the Top 10 query in parallel
+        const top10Promise = (async () => {
+          try {
+            const res = await Promise.race([
+              searchModel.generateContent(top10Query),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000))
+            ]) as any;
+            const responseText: string = res.response.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || res.response.text() || '';
+            return {
+              query: top10Query,
+              ...checkTop10Citation(responseText, domain, profile.businessName)
+            };
+          } catch (e) {
+            console.error('Top10 query failed:', e);
+            return { query: top10Query, cited: false, coMentioned: [] };
+          }
+        })();
+
+        sendEvent('top10_start', { query: top10Query });
         const queryPromises = allQueries.map(async (queryText, i) => {
           let cited = false;
           let webSources: string[] = [];
@@ -334,6 +506,8 @@ export async function GET(request: NextRequest) {
         const queryResults = await Promise.all(queryPromises);
 
         // Process and stream the results
+        // Also track which query each competitor appeared in (Fix 2 — competitor transparency)
+        const competitorQueryMap = new Map<string, string>(); // domain -> first query that surfaced it
         queryResults.forEach((r) => {
           if (r.cited) citedCount++;
           
@@ -350,13 +524,65 @@ export async function GET(request: NextRequest) {
               const blockedDomains = ['google.com', 'youtube.com', 'vertexaisearch.cloud.google.com', 'googleapis.com', 'gstatic.com', 'wikipedia.org', 'reddit.com', 'twitter.com', 'facebook.com', 'instagram.com', 'linkedin.com'];
               if (compDomain !== domain && !blockedDomains.some(b => compDomain.includes(b))) {
                 competitorsMap.set(compDomain, (competitorsMap.get(compDomain) || 0) + 1);
+                // Track the first query that surfaced this competitor
+                if (!competitorQueryMap.has(compDomain)) {
+                  competitorQueryMap.set(compDomain, r.query);
+                }
               }
             } catch (_) {}
           });
         });
 
-        // 5. Generate Custom Fix suggestions based on content using Groq
-        const generatedFixes = await generateFixSuggestions(html);
+        // 5. Generate Fixes and Classify Competitors concurrently
+        const rawCompetitors = Array.from(competitorsMap.entries())
+          .map(([domain, appearances]) => ({ domain, appearances }))
+          .sort((a, b) => b.appearances - a.appearances)
+          .slice(0, 8); // Take top 8 to classify
+          
+        const classifyDomainsPromise = (async () => {
+          let finalCompetitors: CompetitorGap[] = [];
+          let finalDirectories: CompetitorGap[] = [];
+          if (rawCompetitors.length === 0) return { finalCompetitors, finalDirectories };
+          
+          try {
+            const domainsList = rawCompetitors.map(c => c.domain).join(', ');
+            const classPrompt = `Classify these domains into either "competitor" (a direct competing business) or "directory" (an aggregator, review site, platform, or directory like Yelp, Tripadvisor, Doctolib, Jameda, Wikipedia, YellowPages). Return ONLY a JSON object mapping each domain string to either "competitor" or "directory". Domains: ${domainsList}`;
+            
+            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const classRes = await Promise.race([
+              model.generateContent({
+                contents: [{ role: 'user', parts: [{ text: classPrompt }] }],
+                generationConfig: { responseMimeType: 'application/json' }
+              }),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]) as any;
+            
+            const classData = JSON.parse(classRes.response.text().trim());
+            for (const comp of rawCompetitors) {
+              // Attach the source query (for competitor transparency in the UI)
+              const sourceQuery = competitorQueryMap.get(comp.domain) || '';
+              const type = classData[comp.domain] || 'competitor';
+              if (type === 'directory') finalDirectories.push({ ...comp, sourceQuery });
+              else finalCompetitors.push({ ...comp, sourceQuery });
+            }
+          } catch (e) {
+            console.error('Competitor classification failed:', e);
+            finalCompetitors = rawCompetitors; // Fallback
+          }
+          return {
+            finalCompetitors: finalCompetitors.slice(0, 3),
+            finalDirectories: finalDirectories.slice(0, 3)
+          };
+        })();
+
+        const [generatedFixes, { finalCompetitors, finalDirectories }, top10Result] = await Promise.all([
+          generateFixSuggestions(html),
+          classifyDomainsPromise,
+          top10Promise
+        ]);
+
+        sendEvent('top10_complete', top10Result);
+
         const topFixes = generatedFixes.map((fix: any, idx: number) => ({
           id: `fix-gen-${idx}`,
           title: fix.title,
@@ -372,10 +598,8 @@ export async function GET(request: NextRequest) {
         const citationRate = citedCount / allQueries.length;
         const compositeScore = Math.round((technicalScore * 0.3) + ((citationRate * 100) * 0.7));
 
-        const competitors = Array.from(competitorsMap.entries())
-          .map(([domain, appearances]) => ({ domain, appearances }))
-          .sort((a, b) => b.appearances - a.appearances)
-          .slice(0, 3);
+        const competitors = finalCompetitors;
+        const directories = finalDirectories;
 
         let scanId = null;
         try {
@@ -388,6 +612,8 @@ export async function GET(request: NextRequest) {
             const { data, error } = await supabase.from('scans').insert({
               url: targetUrl,
               domain,
+              user_id: user?.id || null,
+              anonymous_session_id: user?.id ? null : ip,
               composite_score: compositeScore,
               citation_rate: Math.round(citationRate * 100),
               cited_count: citedCount,
@@ -433,7 +659,7 @@ export async function GET(request: NextRequest) {
           { name: 'Informational queries', cited: infoCount, total: 1 },
           { name: 'Local intent queries', cited: localCount, total: 1 },
           { name: 'Comparison queries', cited: compCount, total: 1 },
-          { name: 'Direct queries', cited: directCount, total: 1 }
+          { name: 'Brand recognition', cited: directCount, total: 1 }
         ];
 
         const report = {
@@ -445,8 +671,10 @@ export async function GET(request: NextRequest) {
           citedCount,
           totalCount: allQueries.length,
           competitors,
+          directories,
           topFixes,
           intentCategories,
+          top10Result,
           confidence: profile.confidence,
           isBlocked,
           profile: {

@@ -1,15 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Home.css';
 
 interface HomeProps {
-  onStartScan: (url: string, description?: string) => void;
+  onStartScan: (url: string, options: { description?: string; businessType?: string; honeypot?: string; isBot?: boolean; entityType?: string; basedIn?: string; servesMarket?: string; targetClient?: string }) => void;
 }
 
 export default function Home({ onStartScan }: HomeProps) {
   const [inputUrl, setInputUrl] = useState('');
-  const [description, setDescription] = useState('');
+  const [entityType, setEntityType] = useState('');
+  const [basedIn, setBasedIn] = useState('');
+  const [servesMarket, setServesMarket] = useState<'local' | 'national' | 'international'>('local');
+  const [targetClient, setTargetClient] = useState('');
+  const [honeypot, setHoneypot] = useState('');
+  const [mountTime, setMountTime] = useState(0);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setMountTime(Date.now());
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,7 +26,11 @@ export default function Home({ onStartScan }: HomeProps) {
       setError('Please enter a valid website URL.');
       return;
     }
-    
+    if (!entityType.trim()) {
+      setError('Please tell us what type of business this is.');
+      return;
+    }
+
     let targetUrl = inputUrl.trim();
     if (!/^https?:\/\//i.test(targetUrl)) {
       targetUrl = 'https://' + targetUrl;
@@ -27,7 +40,30 @@ export default function Home({ onStartScan }: HomeProps) {
       new URL(targetUrl);
       setError('');
       setIsLoading(true);
-      onStartScan(targetUrl, description.trim());
+
+      const timeToSubmit = Date.now() - mountTime;
+      const isBot = timeToSubmit < 1500;
+
+      // Build a structured description from the explicit fields
+      const parts = [entityType.trim()];
+      if (basedIn.trim()) parts.push(`based in ${basedIn.trim()}`);
+      if (servesMarket === 'international' && targetClient.trim()) {
+        parts.push(`serving ${targetClient.trim()}`);
+      } else if (servesMarket === 'national') {
+        parts.push('serving clients nationally');
+      }
+      const structuredDescription = parts.join(', ');
+
+      onStartScan(targetUrl, {
+        description: structuredDescription,
+        businessType: entityType.trim(),
+        entityType: entityType.trim(),
+        basedIn: basedIn.trim(),
+        servesMarket,
+        targetClient: servesMarket === 'international' ? targetClient.trim() : '',
+        honeypot,
+        isBot,
+      });
     } catch (_) {
       setError('Invalid URL format. Example: yourbusiness.com');
     }
@@ -35,7 +71,7 @@ export default function Home({ onStartScan }: HomeProps) {
 
   return (
     <div className="home-layout">
-      
+
       {/* ZONE 1 — HERO */}
       <section className="zone-hero">
         <div className="hero-content">
@@ -46,51 +82,120 @@ export default function Home({ onStartScan }: HomeProps) {
           </div>
 
           <h1 className="hero-title">
-            Is AI search recommending<br className="desktop-br" /> your business?
+            When someone checks your<br className="desktop-br" /> business on ChatGPT, what do they find?
           </h1>
           <p className="hero-subtitle">
-            ChatGPT, Gemini, and Perplexity are replacing Google for local recommendations.
-            See if your business makes the cut — and exactly what to fix.
+            Even referral-based clients verify online now. AI tools like ChatGPT and Gemini are the new word-of-mouth check.
+            We show you exactly what they see — and what to fix.
           </p>
-          
+
           <div className="search-box-container">
             <form onSubmit={handleSubmit}>
-              <div className="search-form-layout">
-                <input
-                  type="text"
-                  className="url-search-input"
-                  placeholder="yourbusiness.com"
-                  value={inputUrl}
-                  onChange={(e) => setInputUrl(e.target.value)}
-                  autoFocus
-                  aria-label="Your website URL"
-                />
-                <button type="submit" className="url-submit-btn" disabled={isLoading}>
-                  {isLoading ? (
-                    <span className="btn-loading">
-                      <span className="btn-spinner"></span>
-                      Checking…
-                    </span>
-                  ) : (
-                    'Check my score'
-                  )}
-                </button>
+              {/* Step 1 — URL */}
+              <div className="scan-step">
+                <div className="scan-step-label">Your website</div>
+                <div className="search-form-layout">
+                  <input
+                    type="text"
+                    className="url-search-input"
+                    placeholder="yourbusiness.com"
+                    value={inputUrl}
+                    onChange={(e) => setInputUrl(e.target.value)}
+                    autoFocus
+                    aria-label="Your website URL"
+                  />
+                </div>
               </div>
 
-              <div className="description-field-wrapper">
-                <label htmlFor="biz-description" className="description-label">
-                  What does your business do?
-                  <span className="description-optional">Optional — improves accuracy</span>
-                </label>
+              {/* Step 2 — Entity type (required) */}
+              <div className="scan-step" style={{ marginTop: '14px' }}>
+                <div className="scan-step-label">
+                  What type of business?
+                  <span className="scan-step-required">Required</span>
+                </div>
                 <input
-                  id="biz-description"
                   type="text"
                   className="description-input"
-                  placeholder="e.g. We're a physiotherapy clinic in Berlin specialising in sports injuries"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="e.g. Chartered Accountant firm, Physiotherapy clinic, SaaS tool"
+                  value={entityType}
+                  onChange={(e) => setEntityType(e.target.value)}
+                  aria-label="Business entity type"
                 />
               </div>
+
+              {/* Step 3 — Location (soft required) */}
+              <div className="scan-step" style={{ marginTop: '14px' }}>
+                <div className="scan-step-label">
+                  Based in
+                  <span className="scan-step-optional">Optional — improves accuracy</span>
+                </div>
+                <input
+                  type="text"
+                  className="description-input"
+                  placeholder="e.g. Bangalore, India"
+                  value={basedIn}
+                  onChange={(e) => setBasedIn(e.target.value)}
+                  aria-label="Business location"
+                />
+              </div>
+
+              {/* Step 4 — Serves market (one-click toggle) */}
+              <div className="scan-step" style={{ marginTop: '14px' }}>
+                <div className="scan-step-label">Who do you serve?</div>
+                <div className="serves-toggle">
+                  {([
+                    { value: 'local', label: 'Just my city / region' },
+                    { value: 'national', label: 'My country' },
+                    { value: 'international', label: 'Internationally' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`serves-option${servesMarket === opt.value ? ' serves-option--active' : ''}`}
+                      onClick={() => setServesMarket(opt.value)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 3B — optional target client, only if international */}
+                {servesMarket === 'international' && (
+                  <input
+                    type="text"
+                    className="description-input"
+                    style={{ marginTop: '10px' }}
+                    placeholder="Optional — who is your typical client? e.g. NRI clients, US-based startups"
+                    value={targetClient}
+                    onChange={(e) => setTargetClient(e.target.value)}
+                    aria-label="Target client type"
+                  />
+                )}
+              </div>
+
+              {/* Honeypot field - visually hidden */}
+              <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }} aria-hidden="true">
+                <label htmlFor="website-url-optional">Leave this field blank if you are human</label>
+                <input
+                  id="website-url-optional"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                />
+              </div>
+
+              <button type="submit" className="url-submit-btn" disabled={isLoading} style={{ width: '100%', marginTop: '18px', borderRadius: '12px', height: '52px' }}>
+                {isLoading ? (
+                  <span className="btn-loading">
+                    <span className="btn-spinner"></span>
+                    Checking…
+                  </span>
+                ) : (
+                  'Check my score →'
+                )}
+              </button>
             </form>
             {error && <p className="url-error-msg">{error}</p>}
           </div>
@@ -118,13 +223,13 @@ export default function Home({ onStartScan }: HomeProps) {
       <section className="zone-problem">
         <div className="problem-content-wrapper">
           <p>
-            When someone searches for a local service, a restaurant, or a product recommendation — they are increasingly asking ChatGPT or Google AI instead of typing into a search bar.
+            Word of mouth still matters — but the verification step has changed. Before calling, potential clients now ask ChatGPT or Google AI: <em>"Is [Business Name] any good?"</em> or <em>"Who's the best [service] near me?"</em>
           </p>
           <p>
-            Those tools pick a handful of businesses to recommend. Many websites — even good ones — don't make the cut.
+            Those tools pick a handful of businesses to recommend. Many good businesses — even well-reviewed ones — don't appear at all.
           </p>
           <p className="problem-highlight">
-            tryagentscore shows you where you stand, and what to fix.
+            tryagentscore shows you what AI says about your business — and exactly what to fix.
           </p>
         </div>
       </section>
@@ -135,18 +240,18 @@ export default function Home({ onStartScan }: HomeProps) {
         <div className="how-grid">
           <div className="how-step">
             <div className="step-num-icon">1</div>
-            <h3>Paste your URL</h3>
-            <p>We scan your website and identify your business automatically — no setup required.</p>
+            <h3>Tell us about your business</h3>
+            <p>Enter your URL and a few quick details — your business type and location — so we test the right queries.</p>
           </div>
           <div className="how-step">
             <div className="step-num-icon">2</div>
-            <h3>We run 14 AI searches</h3>
-            <p>We query Gemini with real customer questions and check if your business gets cited.</p>
+            <h3>We run real AI searches</h3>
+            <p>We query ChatGPT and Gemini with realistic customer questions and check if your business gets recommended.</p>
           </div>
           <div className="how-step">
             <div className="step-num-icon">3</div>
-            <h3>Get your action plan</h3>
-            <p>Receive a plain-English fix list ranked by impact — so you know exactly what to do next.</p>
+            <h3>Get one clear next step</h3>
+            <p>We surface your biggest visibility gap with a plain-English fix — not a wall of technical tasks.</p>
           </div>
         </div>
       </section>

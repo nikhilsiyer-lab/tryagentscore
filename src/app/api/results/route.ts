@@ -42,7 +42,12 @@ export async function GET(request: NextRequest) {
       totalCount: data.total_count,
       technicalChecks: data.technical_checks,
       topFixes: data.top_fixes,
-      competitors: data.competitors
+      competitors: data.competitors,
+      top10Result: data.top_10_result || {
+        query: `Give me the top 10 services related to ${data.domain}`,
+        cited: data.citation_rate > 30,
+        coMentioned: (data.competitors || []).slice(0, 3).map((c: any) => c.domain || c)
+      }
     };
 
     return NextResponse.json(report);

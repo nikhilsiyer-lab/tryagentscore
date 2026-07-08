@@ -14,13 +14,35 @@ import LogoPreviews from './views/LogoPreviews';
 import { generateReport } from './lib/scanEngine';
 import type { ScanReport } from './lib/scanEngine';
 
-type ViewState = 'home' | 'scanning' | 'results' | 'pricing' | 'welcome' | 'about' | 'privacy' | 'terms' | 'contact' | 'logopreviews';
+import { createClient } from './lib/supabase/client';
+import Dashboard from './views/Dashboard';
+
+type ViewState = 'home' | 'scanning' | 'results' | 'pricing' | 'welcome' | 'about' | 'privacy' | 'terms' | 'contact' | 'logopreviews' | 'dashboard';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('home');
   const [targetUrl, setTargetUrl] = useState('');
   const [description, setDescription] = useState('');
   const [report, setReport] = useState<ScanReport | null>(null);
+  const [user, setUser] = useState<{ email: string; isPro: boolean } | null>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('status')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
+
+        setUser({ email: user.email!, isPro: !!sub });
+      }
+    }
+    checkAuth();
+  }, []);
 
   // Always apply light theme
   useEffect(() => {
@@ -43,16 +65,22 @@ export default function App() {
     if (go === 'pricing') {
       setView('pricing');
     }
+    const paramView = params.get('view');
+    if (paramView === 'dashboard') {
+      setView('dashboard');
+    }
   }, []);
 
-  const handleStartScan = (url: string, desc?: string) => {
+  const handleStartScan = (url: string, options?: { description?: string; businessType?: string; honeypot?: string; isBot?: boolean }) => {
     setTargetUrl(url);
-    if (desc) setDescription(desc);
-    const generatedReport = generateReport(url);
+    if (options?.description) setDescription(options.description);
+    
+    // Create new scan engine call supporting the extra metadata
+    const generatedReport = generateReport(url, options);
     setReport(generatedReport);
     setView('scanning');
     
-    const newUrl = `${window.location.origin}${window.location.pathname}?url=${encodeURIComponent(url)}${desc ? `&desc=${encodeURIComponent(desc)}` : ''}`;
+    const newUrl = `${window.location.origin}${window.location.pathname}?url=${encodeURIComponent(url)}${options?.description ? `&desc=${encodeURIComponent(options.description)}` : ''}`;
     window.history.pushState({ path: newUrl }, '', newUrl);
   };
 
@@ -96,7 +124,13 @@ export default function App() {
           </div>
           
           <nav style={{ display: 'flex', gap: '32px', alignItems: 'center', fontSize: '0.95rem', fontWeight: 500, color: '#475569' }}>
+            {user ? (
+              <a href="#" onClick={(e) => { e.preventDefault(); setView('dashboard'); }} style={{ textDecoration: 'none', color: 'inherit', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#0f172a'} onMouseOut={e => e.currentTarget.style.color = '#475569'}>Dashboard</a>
+            ) : null}
             <a href="#" onClick={(e) => { e.preventDefault(); setView('pricing'); }} style={{ textDecoration: 'none', color: 'inherit', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#0f172a'} onMouseOut={e => e.currentTarget.style.color = '#475569'}>Pricing</a>
+            {!user && (
+              <a href="/login" style={{ textDecoration: 'none', color: 'inherit', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#0f172a'} onMouseOut={e => e.currentTarget.style.color = '#475569'}>Log in</a>
+            )}
           </nav>
           
         </div>
@@ -107,14 +141,15 @@ export default function App() {
       {/* VIEWS */}
       {view === 'home' && <Home onStartScan={handleStartScan} />}
       {view === 'scanning' && <Scanning url={targetUrl} onScanComplete={handleScanComplete} />}
-      {view === 'results' && report && <Results report={report} description={description} onRescan={handleRescan} onNavigateToPricing={() => setView('pricing')} />}
-      {view === 'pricing' && <Pricing onBack={() => setView(report ? 'results' : 'home')} onUpgrade={handleUpgradeSimulate} />}
+      {view === 'results' && report && <Results user={user} report={report} description={description} onRescan={handleRescan} onNavigateToPricing={() => setView('pricing')} />}
+      {view === 'pricing' && <Pricing user={user} onBack={() => setView(report ? 'results' : 'home')} onUpgrade={handleUpgradeSimulate} />}
       {view === 'welcome' && <Welcome onNewScan={handleRescan} onBackToResults={() => setView('results')} />}
       {view === 'about' && <About />}
       {view === 'privacy' && <Privacy />}
       {view === 'terms' && <Terms />}
       {view === 'contact' && <Contact />}
       {view === 'logopreviews' && <LogoPreviews onBack={() => setView('home')} />}
+      {view === 'dashboard' && <Dashboard user={user} onStartScan={() => setView('home')} />}
       
       {/* GLOBAL FOOTER */}
       <footer style={{ 

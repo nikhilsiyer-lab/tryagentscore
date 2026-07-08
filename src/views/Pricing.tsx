@@ -1,20 +1,63 @@
 import { useState } from 'react';
 import './Pricing.css';
-import WaitlistForm from '../components/WaitlistForm';
 
 interface PricingProps {
+  user: { email: string; isPro: boolean } | null;
   onBack: () => void;
   onUpgrade: () => void;
 }
 
-export default function Pricing({ onBack }: PricingProps) {
-  const [showWaitlistForm, setShowWaitlistForm] = useState(false);
+export default function Pricing({ user, onBack }: PricingProps) {
+  const [loading, setLoading] = useState(false);
+
+  const handleCheckout = async () => {
+    if (!user) {
+      window.location.href = '/login?redirect=pricing';
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Failed to start checkout. Please try again.');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  const handlePortal = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/stripe/portal', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Failed to open billing portal.');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="pricing-container animate-fade-in">
       <div className="pricing-header">
-        <h1>Simple, transparent pricing.</h1>
-        <p>Start optimizing your visibility across AI search engines today. Cancel anytime.</p>
+        <h1>Pro — Your AI Trust & Visibility Analyst</h1>
+        <p>Know exactly what AI says about your business when potential clients check. Cancel anytime.</p>
       </div>
       
       <div className="pricing-grid">
@@ -43,42 +86,46 @@ export default function Pricing({ onBack }: PricingProps) {
 
         {/* Pro Plan Card */}
         <div className="pricing-col growth-col">
-          <span className="popular-badge" style={{ background: '#64748b' }}>Coming Soon</span>
+          <span className="popular-badge">Recommended</span>
           <div className="col-header">
-            <h2>Pro</h2>
+            <h2>Pro — Early Access Price</h2>
             <div className="price-title">
-              Waitlist
+              <span style={{ textDecoration: 'line-through', fontSize: '0.6em', color: '#94a3b8', marginRight: '8px' }}>€19</span>
+              €14.99 <span className="price-period">/ month</span>
             </div>
-            <div className="cancel-text">Join early to lock in pioneer pricing</div>
+            <div className="cancel-text">Founding member pricing. Locked in for as long as you stay subscribed.</div>
           </div>
           
           <ul className="feature-list">
-            <li style={{ color: 'var(--text-muted)' }}>🔒 Full visibility audit report</li>
-            <li style={{ color: 'var(--text-muted)' }}>🔒 Detailed fix action checklist</li>
-            <li style={{ color: 'var(--text-muted)' }}>🔒 Automated weekly rank re-checks</li>
-            <li style={{ color: 'var(--text-muted)' }}>🔒 Competitor recommendation tracking</li>
-            <li style={{ color: 'var(--text-muted)' }}>🔒 Priority support</li>
+            <li>Monthly report — see exactly what AI says when clients check you</li>
+            <li>Reliable, multi-sample scoring across multiple AI tools — not just one answer</li>
+            <li>See which competitors appear instead of you, and on which exact query</li>
+            <li>Top 10 list check — does AI name you when asked to list the best in your category?</li>
+            <li>AI-drafted fixes: llms.txt, FAQ content, schema markup — ready to paste in</li>
           </ul>
           
           <div className="col-footer">
-            {!showWaitlistForm ? (
+            {user?.isPro ? (
               <button 
-                onClick={() => setShowWaitlistForm(true)} 
-                className="btn-pricing btn-pricing-primary" 
-                style={{ background: '#64748b', borderColor: '#64748b', boxShadow: 'none' }}
+                onClick={handlePortal} 
+                disabled={loading}
+                className="btn-pricing btn-pricing-primary"
               >
-                Join waitlist →
+                {loading ? 'Loading...' : 'Manage Subscription'}
               </button>
             ) : (
-              <WaitlistForm />
+              <button 
+                onClick={handleCheckout} 
+                disabled={loading}
+                className="btn-pricing btn-pricing-primary"
+              >
+                {loading ? 'Loading...' : (user ? 'Upgrade to Pro →' : 'Log in to upgrade →')}
+              </button>
             )}
           </div>
         </div>
       </div>
 
-      <p className="pricing-contact">
-        Need a customized volume plan? <a href="mailto:hello@tryagentscore.com">Contact us</a>
-      </p>
     </div>
   );
 }

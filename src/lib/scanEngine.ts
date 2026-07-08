@@ -25,6 +25,13 @@ export interface FixItem {
   fixAction: 'llms' | 'robots' | 'schema' | 'link';
 }
 
+export interface Top10Result {
+  query: string;
+  cited: boolean;
+  /** Names/domains of other businesses the AI listed alongside (Pro-only, may be empty) */
+  coMentioned: string[];
+}
+
 export interface ScanReport {
   url: string;
   domain: string;
@@ -37,6 +44,14 @@ export interface ScanReport {
   intentCategories: IntentCategory[];
   competitors: CompetitorGap[];
   topFixes: FixItem[];
+  /** Binary Top-10-list result — present after live scan, Pro-only to display */ 
+  top10Result?: Top10Result;
+  options?: {
+    businessType?: string;
+    honeypot?: string;
+    isBot?: boolean;
+    description?: string;
+  };
 }
 
 export function detectTrack(url: string): 'Service / local business' | 'Product or shop' {
@@ -47,7 +62,7 @@ export function detectTrack(url: string): 'Service / local business' | 'Product 
   return 'Service / local business';
 }
 
-export function generateReport(url: string): ScanReport {
+export function generateReport(url: string, options?: { description?: string; businessType?: string; honeypot?: string; isBot?: boolean }): ScanReport {
   let domain = url.replace(/^(https?:\/\/)?(www\.)?/, '');
   domain = domain.split('/')[0];
   
@@ -133,6 +148,7 @@ export function generateReport(url: string): ScanReport {
     technicalChecks,
     intentCategories,
     competitors,
-    topFixes
+    topFixes,
+    options
   };
 }
