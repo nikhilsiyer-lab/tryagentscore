@@ -550,7 +550,8 @@ export async function GET(request: NextRequest) {
               })
               .filter(comp => {
                 const n = comp.name.toLowerCase();
-                return n.length > 2 && !n.includes(domainRoot) && (!businessNameLower || !n.includes(businessNameLower));
+                const wordCount = comp.name.split(/\s+/).filter(Boolean).length;
+                return n.length > 2 && wordCount <= 3 && !n.includes(domainRoot) && (!businessNameLower || !n.includes(businessNameLower));
               });
 
             if (cited && !groundingCited) {
