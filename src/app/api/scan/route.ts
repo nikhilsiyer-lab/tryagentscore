@@ -564,6 +564,10 @@ export async function GET(request: NextRequest) {
 
         const queryResults = await Promise.all(queryPromises);
 
+        const directoriesMap = new Map<string, number>();
+        const competitorQueryMap = new Map<string, string>();
+        const directoryQueryMap = new Map<string, string>();
+
         queryResults.forEach((r) => {
           if (r.cited) citedCount++;
           
