@@ -506,10 +506,29 @@ export async function GET(request: NextRequest) {
             
             const candidate = res.response.candidates?.[0];
             const groundingMetadata = candidate?.groundingMetadata;
-            webSources = groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web?.title || chunk.web?.uri).filter(Boolean) || [];
             
-            // Strict citation check: match against the raw domain/title
-            cited = webSources.some((src: string) => src.toLowerCase().includes(domain.toLowerCase()));
+            // Extract grounding chunk URLs (reference sources)
+            webSources = groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web?.uri || chunk.web?.title).filter(Boolean) || [];
+            
+            // Check 1: Does our domain appear in grounding chunk URLs?
+            const groundingCited = webSources.some((src: string) => src.toLowerCase().includes(domain.toLowerCase()));
+            
+            // Check 2: Does our domain or business name appear in the actual text response?
+            // This is the critical check — Gemini may recommend a business by name in the text
+            // without including its URL in the grounding sources
+            const responseText: string = candidate?.content?.parts?.map((p: any) => p.text).join('') || '';
+            const textLower = responseText.toLowerCase();
+            const domainRoot = domain.replace(/\.[^.]+$/, '').toLowerCase(); // "vandk" from "vandk.in"
+            const businessNameLower = profile.businessName?.toLowerCase() || '';
+            const textCited = textLower.includes(domainRoot) || 
+                              (businessNameLower.length > 2 && textLower.includes(businessNameLower));
+            
+            // Cited if found in EITHER grounding chunks or text body
+            cited = groundingCited || textCited;
+            
+            if (cited && !groundingCited) {
+              console.log(`Citation found via text body match for "${domain}" in query: "${queryText}" (not in grounding chunks)`);
+            }
           } catch (e) {
             console.error(`Error querying query ${i}:`, e);
           }
