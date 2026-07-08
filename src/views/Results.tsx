@@ -210,21 +210,23 @@ export default function Results({ user, report, description, onRescan, onNavigat
             </div>
           </div>
 
-          {citedCount === 0 && !isScanning ? (
-            <p className="hero-statement">
-              AI search tools did not mention your business in any of our<br />
-              {totalCount} test searches. That is common for new sites - and it is fixable.
-            </p>
-          ) : citedCount >= Math.floor(totalCount * 0.7) && !isScanning ? (
-            <p className="hero-statement">
-              Strong result - AI tools cited your business in {citedCount} of {totalCount} searches.
-            </p>
-          ) : (
-            <p className="hero-statement">
-              AI tools mentioned your business in {isScanning ? '...' : citedCount} of {totalCount} searches.
-              Here is your full report.
-            </p>
-          )}
+          {!isScanning && (() => {
+            if (citedCount === 0) return (
+              <p className="hero-statement">
+                <span style={{ color: '#ef4444', fontWeight: 700 }}>Needs attention</span> - AI tools did not mention your business in any of our {totalCount} test searches.
+              </p>
+            );
+            if (citedCount >= Math.floor(totalCount * 0.7)) return (
+              <p className="hero-statement">
+                <span style={{ color: '#059669', fontWeight: 700 }}>Strong result</span> - AI tools cited your business in {citedCount} of {totalCount} searches.
+              </p>
+            );
+            return (
+              <p className="hero-statement">
+                <span style={{ color: '#d97706', fontWeight: 700 }}>Mixed result</span> - AI tools cited your business in {citedCount} of {totalCount} searches.
+              </p>
+            );
+          })()}
 
           <div className="score-box-wrapper">
             <div className={`score-box-border ${scoreClass}`}>
@@ -236,23 +238,11 @@ export default function Results({ user, report, description, onRescan, onNavigat
                 <div className={`score-bar-fill ${scoreClass}`} style={{ width: `${isScanning ? (prompts.length/totalCount)*100 : compositeScore}%` }}></div>
               </div>
             </div>
-            {!isScanning && (
-              <>
-                {citedCount === 0 ? (
-                  <div className="benchmark-text">
-                    Your page is technically live, but AI tools are not yet choosing it in test searches.
-                    This usually improves after clearer page text, crawler access, and more mentions across the web.
-                  </div>
-                ) : compositeScore > 31 ? (
-                  <div className="benchmark-text">
-                    Industry average: <strong>31/100</strong> - you are above average.
-                  </div>
-                ) : (
-                  <div className="benchmark-text">
-                    Industry average: <strong>31/100</strong> - there is room to improve.
-                  </div>
-                )}
-              </>
+            {!isScanning && citedCount === 0 && (
+                <div className="benchmark-text">
+                  Your page is technically live, but AI tools are not yet choosing it in test searches.
+                  This usually improves after clearer page text, crawler access, and more mentions across the web.
+                </div>
             )}
           </div>
         </section>
