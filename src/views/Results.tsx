@@ -822,52 +822,55 @@ export default function Results({ user, report, description, onRescan, onNavigat
         {/* PRO WAITLIST CTA — bottom of page */}
 
         {!isScanning && (
-          <section className="zone-5 animate-slide-up">
-            <div className="inline-email-capture" style={{ textAlign: 'center', padding: '32px 24px', background: 'linear-gradient(to bottom right, #f8fafc, #f1f5f9)', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-              <div className="email-capture-inner">
-                {user?.isPro ? (
-                  <>
-                    <h4 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px', color: '#0f172a' }}>Scan complete!</h4>
-                    <p style={{ fontSize: '0.95rem', color: '#475569', marginBottom: '24px', lineHeight: '1.6' }}>
-                      This scan has been saved to your dashboard. You can view trends and manage all tracked domains in your dashboard.
-                    </p>
-                  </>
-                ) : user ? (
-                  <>
-                    <h4 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px', color: '#0f172a' }}>Unlock Continuous AI Tracking</h4>
-                    <p style={{ fontSize: '0.95rem', color: '#475569', marginBottom: '24px', lineHeight: '1.6' }}>
-                      Upgrade to Pro to unlock unlimited scans, historical trend graphs, and priority processing.
-                    </p>
-                    <button
-                      onClick={onNavigateToPricing}
-                      style={{
-                        background: '#0f172a',
-                        color: '#fff',
-                        border: 'none',
-                        padding: '10px 24px',
-                        borderRadius: '6px',
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                        marginBottom: '12px'
-                      }}
-                    >
-                      Upgrade to Pro →
-                    </button>
-                  </>
-                ) : null}
-                <div>
-                  <button
-                    onClick={onRescan}
-                    style={{ background: 'none', border: 'none', fontSize: '0.875rem', color: '#9ca3af', cursor: 'pointer' }}
-                    onMouseOver={e => e.currentTarget.style.color = '#6b7280'}
-                    onMouseOut={e => e.currentTarget.style.color = '#9ca3af'}
-                  >
-                    Scan another site
-                  </button>
+          <section className="zone-5 animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {user && (
+              <div className="inline-email-capture" style={{ textAlign: 'center', padding: '32px 24px', background: 'linear-gradient(to bottom right, #f8fafc, #f1f5f9)', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                <div className="email-capture-inner">
+                  {user?.isPro ? (
+                    <>
+                      <h4 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px', color: '#0f172a' }}>Scan complete!</h4>
+                      <p style={{ fontSize: '0.95rem', color: '#475569', marginBottom: '0', lineHeight: '1.6' }}>
+                        This scan has been saved to your dashboard. You can view trends and manage all tracked domains in your dashboard.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h4 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px', color: '#0f172a' }}>Unlock Continuous AI Tracking</h4>
+                      <p style={{ fontSize: '0.95rem', color: '#475569', marginBottom: '24px', lineHeight: '1.6' }}>
+                        Upgrade to Pro to unlock unlimited scans, historical trend graphs, and priority processing.
+                      </p>
+                      <button
+                        onClick={onNavigateToPricing}
+                        style={{
+                          background: '#0f172a',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '10px 24px',
+                          borderRadius: '6px',
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          marginBottom: '0'
+                        }}
+                      >
+                        Upgrade to Pro →
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
+            )}
+            
+            <div style={{ textAlign: 'center', marginTop: user ? '0' : '32px' }}>
+              <button
+                onClick={onRescan}
+                style={{ background: 'none', border: 'none', fontSize: '0.95rem', color: '#64748b', cursor: 'pointer', padding: '12px 24px', borderRadius: '8px', backgroundColor: '#f1f5f9', fontWeight: 500, transition: 'all 0.2s ease' }}
+                onMouseOver={e => { e.currentTarget.style.backgroundColor = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
+                onMouseOut={e => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+              >
+                Scan another site
+              </button>
             </div>
           </section>
         )}
