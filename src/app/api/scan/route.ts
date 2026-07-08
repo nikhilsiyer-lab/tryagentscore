@@ -315,6 +315,8 @@ export async function GET(request: NextRequest) {
   // Quick Supabase check for Cache and IP Rate Limit
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  let cachedScan: any = null;
+
   if (supabaseUrl && supabaseKey) {
     const { createClient } = await import('@supabase/supabase-js');
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -333,7 +335,7 @@ export async function GET(request: NextRequest) {
 
       // 2. Domain Caching (72h)
       // We skip caching if user is Pro (they get fresh scans)
-      const { data: cachedScan } = await supabase
+      const { data: cacheHit } = await supabase
         .from('scans')
         .select('*')
         .eq('domain', domain)
@@ -342,38 +344,8 @@ export async function GET(request: NextRequest) {
         .limit(1)
         .single();
         
-      if (cachedScan) {
-        const encoder = new TextEncoder();
-        const customReadable = new ReadableStream({
-          async start(controller) {
-            const sendEvent = (event: string, data: any) => {
-              controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-            };
-            // Stream the cached result immediately
-            sendEvent('scan_complete', {
-              id: cachedScan.id,
-              domain: cachedScan.domain,
-              url: cachedScan.url,
-              compositeScore: cachedScan.composite_score,
-              citationRate: cachedScan.citation_rate,
-              citedCount: cachedScan.cited_count,
-              totalCount: cachedScan.total_count,
-              competitors: cachedScan.competitors || [],
-              directories: cachedScan.directories || [],
-              topFixes: cachedScan.top_fixes || [],
-              isBlocked: false,
-              top10Result: cachedScan.top10_result || {
-                query: `Give me the top 10 services related to ${cachedScan.domain}`,
-                cited: cachedScan.citation_rate > 30,
-                coMentioned: (cachedScan.competitors || []).slice(0, 3).map((c: any) => c.domain || c)
-              }
-            });
-            controller.close();
-          }
-        });
-        return new Response(customReadable, {
-          headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' },
-        });
+      if (cacheHit) {
+        cachedScan = cacheHit;
       }
     }
   }
@@ -440,6 +412,45 @@ export async function GET(request: NextRequest) {
         const metaDescMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i) || html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*name=["']description["'][^>]*>/i);
         const metaDesc = metaDescMatch ? metaDescMatch[1] : '';
         const htmlSnippet = pageTitle || metaDesc ? `Title: ${pageTitle}\nDescription: ${metaDesc}` : html.slice(0, 1000);
+
+        // If we have a cached AI scan, generate fresh fixes, recalculate score, and return early
+        if (cachedScan) {
+          const topFixesRaw = await generateFixSuggestions(html);
+          const topFixes = topFixesRaw.map((fix: any, idx: number) => ({
+            id: `fix-gen-${idx}`,
+            title: fix.title,
+            description: fix.description,
+            impact: fix.impact,
+            timeEstimate: fix.timeEstimate,
+            fixAction: 'link'
+          }));
+
+          const passCount = technicalChecks.filter(c => c.status === 'pass').length;
+          const technicalScore = Math.round((passCount / 14) * 100);
+          const compositeScore = Math.round((technicalScore * 0.3) + ((cachedScan.citation_rate) * 0.7));
+
+          sendEvent('scan_complete', {
+            id: cachedScan.id,
+            domain: cachedScan.domain,
+            url: fetchUrl,
+            compositeScore,
+            citationRate: cachedScan.citation_rate,
+            citedCount: cachedScan.cited_count,
+            totalCount: cachedScan.total_count,
+            competitors: cachedScan.competitors || [],
+            directories: cachedScan.directories || [],
+            topFixes,
+            intentCategories: cachedScan.intent_categories || [],
+            isBlocked,
+            top10Result: cachedScan.top10_result || {
+              query: `Give me the top 10 services related to ${cachedScan.domain}`,
+              cited: cachedScan.citation_rate > 30,
+              coMentioned: (cachedScan.competitors || []).slice(0, 3).map((c: any) => c.domain || c)
+            }
+          });
+          controller.close();
+          return;
+        }
 
         // 2. Classify Business Profile & Services
         const rawProfile = await analyzeBusinessProfile(domain, fetchUrl, description, htmlSnippet);
