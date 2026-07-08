@@ -9,8 +9,16 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Is AI search recommending your business?",
     description: "Run 14 AI citation tests on your website in 30 seconds. See your score, find gaps, and get a plain-English fix plan. Free.",
-    url: "https://tryagentscore.vercel.app",
-    siteName: "tryagentscore",
+    url: "https://tryagentscore.com",
+    siteName: "AgentScore",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "AgentScore - The #1 tool to measure your business visibility across AI search engines",
+      },
+    ],
     type: "website",
   },
   twitter: {
@@ -18,7 +26,7 @@ export const metadata: Metadata = {
     title: "Is AI search recommending your business?",
     description: "Get your AI visibility score in 30 seconds. Free, no sign-up.",
   },
-  metadataBase: new URL("https://tryagentscore.vercel.app"),
+  metadataBase: new URL("https://tryagentscore.com"),
 };
 
 
