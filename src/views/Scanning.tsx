@@ -1,61 +1,103 @@
 import { useState, useEffect } from 'react';
 import './Scanning.css';
+import type { ScanReport } from '../lib/scanEngine';
 
 interface ScanningProps {
   url: string;
-  onScanComplete: () => void;
+  options?: Record<string, any>;
+  onScanComplete: (report: ScanReport) => void;
 }
 
 const STEPS = [
-  { text: 'Starting connection to your website...', pct: 10, category: 'crawlability' },
-  { text: 'Checking if AI crawlers are allowed in robots.txt...', pct: 22, category: 'crawlability' },
-  { text: 'Checking if an llms.txt description file is present...', pct: 35, category: 'crawlability' },
-  { text: 'Verifying secure HTTPS connection setup...', pct: 45, category: 'crawlability' },
+  { text: 'Starting connection to your website...', pct: 5, category: 'crawlability' },
+  { text: 'Checking if AI crawlers are allowed in robots.txt...', pct: 15, category: 'crawlability' },
+  { text: 'Checking if an llms.txt description file is present...', pct: 25, category: 'crawlability' },
+  { text: 'Verifying secure HTTPS connection setup...', pct: 40, category: 'crawlability' },
   { text: 'Testing how AI models read your pages...', pct: 55, category: 'structure' },
-  { text: 'Checking how your pages are organized...', pct: 68, category: 'structure' },
-  { text: 'Checking for schema metadata tags...', pct: 78, category: 'structure' },
-  { text: 'Analyzing text readability & paragraph layout...', pct: 88, category: 'citability' },
-  { text: 'Checking outbound references & author bylines...', pct: 95, category: 'citability' },
-  { text: 'Calculating final visibility benchmark scores...', pct: 100, category: 'citability' },
+  { text: 'Running parallel AI queries...', pct: 70, category: 'structure' },
+  { text: 'Evaluating visibility against top competitors...', pct: 85, category: 'citability' },
+  { text: 'Calculating final visibility benchmark scores...', pct: 95, category: 'citability' },
+  { text: 'Complete', pct: 100, category: 'citability' },
 ];
 
-export default function Scanning({ url, onScanComplete }: ScanningProps) {
+export default function Scanning({ url, options, onScanComplete }: ScanningProps) {
   const [progress, setProgress] = useState(0);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   // Extract domain for display
   let domain = url.replace(/^(https?:\/\/)?(www\.)?/, '');
   domain = domain.split('/')[0];
 
   useEffect(() => {
-    // 6-second total scan simulation (6000ms / 100 steps)
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        
-        const nextVal = prev + 2;
-        
-        // Update steps based on percentage
-        const matchedStep = STEPS.findIndex(s => nextVal <= s.pct);
-        if (matchedStep !== -1) {
-          setCurrentStepIdx(matchedStep);
-        }
+    // Start an interval that increments progress slowly, but never reaches 100% until the API returns
+    const timer = setInterval(() => {
+      setProgress(p => (p < 85 ? p + 1 : p));
+    }, 400);
 
-        return nextVal;
-      });
-    }, 120);
+    const query = new URLSearchParams({ url, ...(options || {}) }).toString();
+    const eventSource = new EventSource(`/api/scan?${query}`);
 
-    return () => clearInterval(interval);
-  }, []);
+    eventSource.addEventListener('crawl_start', () => {
+      setProgress(10);
+    });
+
+    eventSource.addEventListener('audit_complete', () => {
+      setProgress(40);
+    });
+
+    eventSource.addEventListener('top10_complete', () => {
+      setProgress(75);
+    });
+
+    eventSource.addEventListener('scan_complete', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        setProgress(100);
+        setCurrentStepIdx(STEPS.length - 1);
+        clearInterval(timer);
+        setTimeout(() => onScanComplete(data), 500); // short delay so user sees 100%
+        eventSource.close();
+      } catch (err) {
+        setError('Failed to parse scan data');
+      }
+    });
+
+    eventSource.addEventListener('error', (e) => {
+      console.error('SSE Error', e);
+      // Wait, is there a custom error event?
+      // Some server errors send a normal message or close the stream.
+      // We can just keep it open, or close if readyState is CLOSED
+      if (eventSource.readyState === EventSource.CLOSED) {
+        setError('Connection closed unexpectedly.');
+      }
+    });
+
+    return () => {
+      clearInterval(timer);
+      eventSource.close();
+    };
+  }, [url, options, onScanComplete]);
 
   useEffect(() => {
-    if (progress >= 100) {
-      onScanComplete();
+    // Update step text based on progress
+    const matchedStep = [...STEPS].reverse().find(s => progress >= s.pct);
+    if (matchedStep) {
+      setCurrentStepIdx(STEPS.indexOf(matchedStep));
     }
-  }, [progress, onScanComplete]);
+  }, [progress]);
+
+  if (error) {
+    return (
+      <div className="scanning-container animate-fade-in">
+        <div className="scanning-card glass-panel" style={{ textAlign: 'center', padding: '40px' }}>
+          <h2 style={{ color: '#ef4444' }}>Scan Failed</h2>
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()} style={{ marginTop: '20px', padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#0f172a', color: 'white', cursor: 'pointer' }}>Try Again</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="scanning-container animate-fade-in">

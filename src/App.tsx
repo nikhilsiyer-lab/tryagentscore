@@ -11,7 +11,6 @@ import Privacy from './views/Privacy';
 import Terms from './views/Terms';
 import Contact from './views/Contact';
 import LogoPreviews from './views/LogoPreviews';
-import { generateReport } from './lib/scanEngine';
 import type { ScanReport } from './lib/scanEngine';
 
 import { createClient } from './lib/supabase/client';
@@ -23,6 +22,7 @@ export default function App() {
   const [view, setView] = useState<ViewState>('home');
   const [targetUrl, setTargetUrl] = useState('');
   const [description, setDescription] = useState('');
+  const [scanOptions, setScanOptions] = useState<any>(null);
   const [report, setReport] = useState<ScanReport | null>(null);
   const [user, setUser] = useState<{ email: string; isPro: boolean } | null>(null);
   const supabase = createClient();
@@ -74,17 +74,16 @@ export default function App() {
   const handleStartScan = (url: string, options?: { description?: string; businessType?: string; honeypot?: string; isBot?: boolean }) => {
     setTargetUrl(url);
     if (options?.description) setDescription(options.description);
+    if (options) setScanOptions(options);
     
-    // Create new scan engine call supporting the extra metadata
-    const generatedReport = generateReport(url, options);
-    setReport(generatedReport);
     setView('scanning');
     
     const newUrl = `${window.location.origin}${window.location.pathname}?url=${encodeURIComponent(url)}${options?.description ? `&desc=${encodeURIComponent(options.description)}` : ''}`;
     window.history.pushState({ path: newUrl }, '', newUrl);
   };
 
-  const handleScanComplete = () => {
+  const handleScanComplete = (finalReport: ScanReport) => {
+    setReport(finalReport);
     setView('results');
   };
 
@@ -140,7 +139,7 @@ export default function App() {
 
       {/* VIEWS */}
       {view === 'home' && <Home onStartScan={handleStartScan} />}
-      {view === 'scanning' && <Scanning url={targetUrl} onScanComplete={handleScanComplete} />}
+      {view === 'scanning' && <Scanning url={targetUrl} options={scanOptions} onScanComplete={handleScanComplete} />}
       {view === 'results' && report && <Results user={user} report={report} description={description} onRescan={handleRescan} onNavigateToPricing={() => setView('pricing')} />}
       {view === 'pricing' && <Pricing user={user} onBack={() => setView(report ? 'results' : 'home')} onUpgrade={handleUpgradeSimulate} />}
       {view === 'welcome' && <Welcome onNewScan={handleRescan} onBackToResults={() => setView('results')} />}
