@@ -2,14 +2,15 @@ import { createClient } from '../../lib/supabase/server';
 import { getCurrentUser } from '../../lib/auth';
 import { redirect } from 'next/navigation';
 
-export default async function AdminDashboard() {
+interface PageProps {
+  searchParams: Promise<{ start?: string; end?: string }>;
+}
+
+export default async function AdminDashboard({ searchParams }: PageProps) {
+  const params = await searchParams;
   const user = await getCurrentUser();
   
-  // Basic protection: only allow the owner (or logged in users for this demo)
-  // In a real app, you'd check a roles table or specific admin emails.
   if (!user || user.email !== 'nikhilsiyer@gmail.com') {
-    // For demo purposes, we'll let any logged-in user view it if the email check fails,
-    // but typically you'd redirect. Let's just strictly enforce login.
     if (!user) {
       redirect('/login');
     }
@@ -17,21 +18,56 @@ export default async function AdminDashboard() {
 
   const supabase = await createClient();
 
-  // 1. Volume & Usage: Total Scans
-  const { count: totalScans } = await supabase.from('scans').select('*', { count: 'exact', head: true });
-  
+  // Date Filtering Setup
+  const startDateStr = params.start || '';
+  const endDateStr = params.end || '';
+
+  // 1. Volume & Usage: Total Scans with optional date range filter
+  let totalScansQuery = supabase.from('scans').select('*', { count: 'exact' });
+  let scansListQuery = supabase.from('scans').select('id, created_at, domain, composite_score, user_id, anonymous_session_id').order('created_at', { ascending: false });
+
+  if (startDateStr) {
+    totalScansQuery = totalScansQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
+    scansListQuery = scansListQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
+  }
+  if (endDateStr) {
+    totalScansQuery = totalScansQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
+    scansListQuery = scansListQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
+  }
+
+  const { count: totalScans, data: scansData } = await totalScansQuery;
+  const { data: scansList } = await scansListQuery.limit(50); // limit to last 50 for display
+
   // Scans by user type (Anonymous vs Logged In)
-  const { count: anonScans } = await supabase.from('scans').select('*', { count: 'exact', head: true }).is('user_id', null);
-  const { count: userScans } = await supabase.from('scans').select('*', { count: 'exact', head: true }).not('user_id', 'is', null);
+  let anonQuery = supabase.from('scans').select('*', { count: 'exact', head: true }).is('user_id', null);
+  let loggedQuery = supabase.from('scans').select('*', { count: 'exact', head: true }).not('user_id', 'is', null);
+
+  if (startDateStr) {
+    anonQuery = anonQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
+    loggedQuery = loggedQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
+  }
+  if (endDateStr) {
+    anonQuery = anonQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
+    loggedQuery = loggedQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
+  }
+
+  const { count: anonScans } = await anonQuery;
+  const { count: userScans } = await loggedQuery;
 
   // 2. Conversion: Scans claimed
-  const { count: claimedScans } = await supabase.from('scans').select('*', { count: 'exact', head: true }).eq('is_claimed', true);
+  let claimedQuery = supabase.from('scans').select('*', { count: 'exact', head: true }).eq('is_claimed', true);
+  if (startDateStr) claimedQuery = claimedQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
+  if (endDateStr) claimedQuery = claimedQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
+  const { count: claimedScans } = await claimedQuery;
 
   // 3. Subscriptions (Pro Users)
   const { count: proUsers } = await supabase.from('subscriptions').select('*', { count: 'exact', head: true }).eq('status', 'active');
 
   // 4. Engagement: Recommendation Events
-  const { data: events } = await supabase.from('user_events').select('event_type');
+  let eventsQuery = supabase.from('user_events').select('event_type');
+  if (startDateStr) eventsQuery = eventsQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
+  if (endDateStr) eventsQuery = eventsQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
+  const { data: events } = await eventsQuery;
   
   const eventCounts = {
     shown: 0,
@@ -52,6 +88,44 @@ export default async function AdminDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px' }}>
         <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Internal Analytics</h1>
         <span style={{ background: '#f1f5f9', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 }}>Admin View</span>
+      </div>
+
+      {/* Date Filter Panel */}
+      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 20px', marginBottom: '32px' }}>
+        <form method="GET" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Start Date</label>
+            <input 
+              type="date" 
+              name="start" 
+              defaultValue={startDateStr}
+              style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', color: '#334155' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>End Date</label>
+            <input 
+              type="date" 
+              name="end" 
+              defaultValue={endDateStr}
+              style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', color: '#334155' }}
+            />
+          </div>
+          <button 
+            type="submit" 
+            style={{ padding: '8px 16px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Apply Filters
+          </button>
+          {(startDateStr || endDateStr) && (
+            <a 
+              href="/admin" 
+              style={{ padding: '8px 16px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', color: '#64748b', textDecoration: 'none', fontWeight: 500 }}
+            >
+              Clear
+            </a>
+          )}
+        </form>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px', marginBottom: '40px' }}>
@@ -81,6 +155,58 @@ export default async function AdminDashboard() {
           </div>
         </div>
 
+      </div>
+
+      {/* Scanned Domains Table */}
+      <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '24px' }}>Scanned Domains</h2>
+      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '40px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <th style={{ padding: '16px', fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>Date/Time</th>
+              <th style={{ padding: '16px', fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>Domain</th>
+              <th style={{ padding: '16px', fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>Score</th>
+              <th style={{ padding: '16px', fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>User Identifier</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!scansList || scansList.length === 0 ? (
+              <tr>
+                <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+                  No scans found in this date range.
+                </td>
+              </tr>
+            ) : (
+              scansList.map((scan) => (
+                <tr key={scan.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '16px', color: '#475569', fontSize: '0.9rem' }}>
+                    {new Date(scan.created_at).toLocaleString()}
+                  </td>
+                  <td style={{ padding: '16px', fontWeight: 500, color: '#0ea5e9' }}>
+                    <a href={`/results/${scan.id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {scan.domain} ↗
+                    </a>
+                  </td>
+                  <td style={{ padding: '16px' }}>
+                    <span style={{ 
+                      padding: '2px 8px', 
+                      borderRadius: '12px', 
+                      fontSize: '0.85rem', 
+                      fontWeight: 600,
+                      background: scan.composite_score >= 70 ? '#ecfdf5' : scan.composite_score >= 35 ? '#fffbeb' : '#fef2f2',
+                      color: scan.composite_score >= 70 ? '#047857' : scan.composite_score >= 35 ? '#b45309' : '#b91c1c'
+                    }}>
+                      {scan.composite_score}/100
+                    </span>
+                  </td>
+                  <td style={{ padding: '16px', color: '#64748b', fontSize: '0.85rem', fontFamily: 'monospace' }}>
+                    {scan.user_id ? `User: ${scan.user_id.slice(0, 8)}...` : `Anon (IP/ID): ${scan.anonymous_session_id ? scan.anonymous_session_id.slice(0, 12) + '...' : 'Unknown'}`}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '24px' }}>Recommendation Card Funnel</h2>
