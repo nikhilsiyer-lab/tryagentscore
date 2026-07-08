@@ -82,11 +82,10 @@ export default function Home({ onStartScan }: HomeProps) {
           </div>
 
           <h1 className="hero-title">
-            When someone checks your<br className="desktop-br" /> business on ChatGPT, what do they find?
+            See what AI tools find when they look up your business
           </h1>
           <p className="hero-subtitle">
-            Even referral-based clients verify online now. AI tools like ChatGPT and Gemini are the new word-of-mouth check.
-            We show you exactly what they see — and what to fix.
+            We show you how your business appears in AI search - and the fastest way to improve it
           </p>
 
           <div className="search-box-container">
@@ -123,11 +122,11 @@ export default function Home({ onStartScan }: HomeProps) {
                 />
               </div>
 
-              {/* Step 3 — Location (soft required) */}
+              {/* Step 3 - Location (soft required) */}
               <div className="scan-step" style={{ marginTop: '14px' }}>
                 <div className="scan-step-label">
                   Based in
-                  <span className="scan-step-optional">Optional — improves accuracy</span>
+                  <span className="scan-step-optional">Optional - improves accuracy</span>
                 </div>
                 <input
                   type="text"
@@ -139,7 +138,7 @@ export default function Home({ onStartScan }: HomeProps) {
                 />
               </div>
 
-              {/* Step 4 — Serves market (one-click toggle) */}
+              {/* Step 4 - Serves market (one-click toggle) */}
               <div className="scan-step" style={{ marginTop: '14px' }}>
                 <div className="scan-step-label">Who do you serve?</div>
                 <div className="serves-toggle">
@@ -159,13 +158,13 @@ export default function Home({ onStartScan }: HomeProps) {
                   ))}
                 </div>
 
-                {/* 3B — optional target client, only if international */}
+                {/* 3B - optional target client, only if international */}
                 {servesMarket === 'international' && (
                   <input
                     type="text"
                     className="description-input"
                     style={{ marginTop: '10px' }}
-                    placeholder="Optional — who is your typical client? e.g. NRI clients, US-based startups"
+                    placeholder="Optional - who is your typical client? e.g. NRI clients, US-based startups"
                     value={targetClient}
                     onChange={(e) => setTargetClient(e.target.value)}
                     aria-label="Target client type"
@@ -219,20 +218,6 @@ export default function Home({ onStartScan }: HomeProps) {
         </div>
       </section>
 
-      {/* ZONE 2 — THE PROBLEM */}
-      <section className="zone-problem">
-        <div className="problem-content-wrapper">
-          <p>
-            Word of mouth still matters — but the verification step has changed. Before calling, potential clients now ask ChatGPT or Perplexity: <em>"Is Vishranth & Karthik a good dental clinic?"</em> or <em>"Who's the best dentist near me?"</em>
-          </p>
-          <p>
-            Those tools pick a handful of businesses to recommend. Many good businesses — even well-reviewed ones — don't appear at all.
-          </p>
-          <p className="problem-highlight">
-            AgentScore shows you exactly where you stand — and what to fix.
-          </p>
-        </div>
-      </section>
 
       {/* ZONE 3 — HOW IT WORKS */}
       <section className="zone-how">
@@ -241,17 +226,17 @@ export default function Home({ onStartScan }: HomeProps) {
           <div className="how-step">
             <div className="step-num-icon">1</div>
             <h3>Tell us about your business</h3>
-            <p>Enter your URL and a few quick details — your business type and location — so we test the right queries.</p>
+            <p>Enter your URL and a few quick details. Your business type and location help us test the right queries.</p>
           </div>
           <div className="how-step">
             <div className="step-num-icon">2</div>
             <h3>We run real AI searches</h3>
-            <p>We query ChatGPT and Gemini with realistic customer questions and check if your business gets recommended.</p>
+            <p>We use realistic customer questions to see whether your business gets recommended.</p>
           </div>
           <div className="how-step">
             <div className="step-num-icon">3</div>
             <h3>Get one clear next step</h3>
-            <p>We surface your biggest visibility gap with a plain-English fix — not a wall of technical tasks.</p>
+            <p>We show your biggest visibility gap in plain English.</p>
           </div>
         </div>
       </section>

@@ -39,8 +39,35 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
   const [loadingDomains, setLoadingDomains] = useState(true)
   const [loadingTrend, setLoadingTrend] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'recommendations' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'recommendations' | 'settings'>(() => {
+    if (typeof window !== 'undefined') {
+      const tab = new URLSearchParams(window.location.search).get('tab')
+      if (tab === 'recommendations' || tab === 'settings') return tab
+    }
+    return 'overview'
+  })
+  
+  const [toast, setToast] = useState<{message: string, type: 'success'|'error'} | null>(null)
+  const [chartTooltip, setChartTooltip] = useState<{x: number, y: number, date: string, composite: number, citation: number} | null>(null)
+
   const supabase = createClient()
+
+  // Sync tab state to URL
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', activeTab)
+      window.history.replaceState({}, '', url)
+    }
+  }, [activeTab])
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [toast])
 
   // Fix 1: Ensure dark theme is applied (login page sets light-theme, dashboard should always be dark)
   useEffect(() => {
@@ -120,12 +147,26 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ event_type: `recommendation_${action}`, event_data: { fixId, domain: selectedDomain } })
       });
-      // Visually hide the card or show a toast
+      
+      // Update local state immediately
+      setDomains(prev => prev.map(d => {
+        if (d.domain === selectedDomain) {
+          return {
+            ...d,
+            latestFixes: d.latestFixes.filter(f => f.id !== fixId)
+          }
+        }
+        return d
+      }))
+      
       if (action === 'applied') {
-        alert('Marked as applied. We will check this on the next automatic scan.');
+        setToast({ message: 'Marked as applied. We will check this on the next automatic scan.', type: 'success' })
+      } else if (action === 'dismissed') {
+        setToast({ message: 'Recommendation dismissed.', type: 'success' })
       }
     } catch (err) {
       console.error(err);
+      setToast({ message: 'An error occurred. Please try again.', type: 'error' })
     }
   }
 
@@ -185,12 +226,28 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
           const compCoords = getCoords(idx, pt.composite_score)
           const citCoords = getCoords(idx, pt.citation_rate)
           return (
-            <g key={pt.id}>
+            <g key={pt.id} 
+               onMouseEnter={() => setChartTooltip({ x: compCoords.x, y: compCoords.y - 10, date: new Date(pt.created_at).toLocaleDateString(), composite: pt.composite_score, citation: pt.citation_rate })}
+               onMouseLeave={() => setChartTooltip(null)}
+               style={{ cursor: 'pointer' }}
+            >
+              {/* Invisible larger hit area for hover */}
+              <circle cx={compCoords.x} cy={compCoords.y} r="15" fill="transparent" />
+              <circle cx={citCoords.x} cy={citCoords.y} r="15" fill="transparent" />
+              
               <circle cx={compCoords.x} cy={compCoords.y} r="5" fill="var(--primary)" stroke="#ffffff" strokeWidth="2" />
               <circle cx={citCoords.x} cy={citCoords.y} r="5" fill="#10b981" stroke="#ffffff" strokeWidth="2" />
             </g>
           )
         })}
+
+        {chartTooltip && (
+          <g>
+            <rect x={chartTooltip.x - 60} y={chartTooltip.y - 55} width="120" height="50" fill="#1e293b" rx="4" />
+            <text x={chartTooltip.x} y={chartTooltip.y - 40} fill="#f8fafc" fontSize="10" textAnchor="middle" fontWeight="bold">{chartTooltip.date}</text>
+            <text x={chartTooltip.x} y={chartTooltip.y - 25} fill="#cbd5e1" fontSize="10" textAnchor="middle">Score: {chartTooltip.composite}% | Citation: {chartTooltip.citation}%</text>
+          </g>
+        )}
 
         {trendData.length > 0 && (
           <text x={padding} y={height - 8} fontSize="10" fill="#94a3b8" textAnchor="start">
@@ -207,6 +264,16 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
   }
 
   const selectedDomainData = domains.find(d => d.domain === selectedDomain)
+  
+  // Calculate Deltas
+  let scoreDelta = 0;
+  let citationDelta = 0;
+  if (trendData.length >= 2) {
+    const latest = trendData[trendData.length - 1];
+    const previous = trendData[trendData.length - 2];
+    scoreDelta = latest.composite_score - previous.composite_score;
+    citationDelta = latest.citation_rate - previous.citation_rate;
+  }
   
   // Calculate usage limit mock
   const scansUsedThisMonth = domains.reduce((acc, d) => acc + d.scanCount, 0);
@@ -253,7 +320,7 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
               Unlock continuous trend tracking
             </h4>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '600px' }}>
-              Your visibility score was {domains[0]?.latestScore || '--'} last scan. Upgrade to Pro to get an analyst working on it — not just another score. Lock in €14.99/month as an early member.
+              Your visibility score was {domains[0]?.latestScore || '--'} last scan. Upgrade to Pro to get an analyst working on it - not just another score. Lock in €14.99/month as an early member.
             </p>
             <p style={{ margin: '8px 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
               Usage: {scansUsedThisMonth} free scans used
@@ -313,7 +380,10 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
       </div>
 
       {loadingDomains ? (
-        <div style={{ textAlign: 'center', padding: '100px 0' }}>Loading domains...</div>
+        <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ height: '32px', width: '200px', background: '#e2e8f0', borderRadius: '4px', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+          <div style={{ height: '120px', width: '100%', background: '#f1f5f9', borderRadius: '8px', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+        </div>
       ) : domains.length === 0 ? (
         <div className="empty-dashboard card-gradient">
           <div className="empty-icon">📊</div>
@@ -370,11 +440,25 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
                 <div className="stats-grid">
                   <div className="stat-card">
                     <div className="stat-label">Latest Visibility Score</div>
-                    <div className="stat-value">{selectedDomainData?.latestScore}%</div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                      <div className="stat-value">{selectedDomainData?.latestScore}%</div>
+                      {trendData.length >= 2 && (
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: scoreDelta > 0 ? '#10b981' : scoreDelta < 0 ? '#ef4444' : '#64748b' }}>
+                          {scoreDelta > 0 ? '↑' : scoreDelta < 0 ? '↓' : ''} {Math.abs(scoreDelta)}%
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-label">Latest Citation Rate</div>
-                    <div className="stat-value">{selectedDomainData?.latestCitationRate}%</div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                      <div className="stat-value">{selectedDomainData?.latestCitationRate}%</div>
+                      {trendData.length >= 2 && (
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: citationDelta > 0 ? '#10b981' : citationDelta < 0 ? '#ef4444' : '#64748b' }}>
+                          {citationDelta > 0 ? '↑' : citationDelta < 0 ? '↓' : ''} {Math.abs(citationDelta)}%
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -383,8 +467,9 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
                     Historical Progress
                   </h4>
                   {loadingTrend ? (
-                    <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      Loading trend data...
+                    <div style={{ height: '220px', display: 'flex', flexDirection: 'column', gap: '10px', padding: '20px' }}>
+                      <div style={{ height: '20px', width: '100px', background: '#e2e8f0', borderRadius: '4px', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                      <div style={{ height: '160px', width: '100%', background: '#f1f5f9', borderRadius: '8px', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
                     </div>
                   ) : user?.isPro ? (
                     <>
@@ -482,19 +567,66 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
                   <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: 0 }}>Authentication is handled securely via magic links.</p>
                 </div>
 
-                {user?.isPro && (
-                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px', marginBottom: '24px' }}>
-                    <h4 style={{ margin: '0 0 16px 0' }}>Subscription</h4>
-                    <p style={{ fontSize: '0.95rem', color: '#475569', marginBottom: '16px' }}>Manage your Pro subscription, update your payment method, or download invoices.</p>
-                    <button 
-                      onClick={handlePortal} 
-                      disabled={portalLoading} 
-                      className="btn-pricing btn-pricing-outline"
-                    >
-                      {portalLoading ? 'Loading...' : 'Open Stripe Billing Portal'}
-                    </button>
-                  </div>
-                )}
+                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px', marginBottom: '24px' }}>
+                  <h4 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>Subscription & Billing</span>
+                    <span className={`user-badge ${user?.isPro ? 'pro-badge' : ''}`} style={{ fontSize: '0.8rem', padding: '4px 10px' }}>
+                      {user?.isPro ? 'Pro Plan Active' : 'Free Plan'}
+                    </span>
+                  </h4>
+                  
+                  {user?.isPro ? (
+                    <>
+                      <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ color: '#475569', fontSize: '0.9rem' }}>Current Plan</span>
+                          <span style={{ fontWeight: 600 }}>AgentScore Pro</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ color: '#475569', fontSize: '0.9rem' }}>Price</span>
+                          <span style={{ fontWeight: 600 }}>€14.99 / month</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#475569', fontSize: '0.9rem' }}>Usage</span>
+                          <span style={{ fontWeight: 600 }}>Unlimited scans</span>
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                        <button 
+                          onClick={handlePortal} 
+                          disabled={portalLoading} 
+                          style={{ background: '#fff', border: '1px solid #cbd5e1', padding: '10px 20px', borderRadius: '6px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 500 }}
+                        >
+                          {portalLoading ? 'Loading...' : 'Update Payment Method'}
+                        </button>
+                        <button 
+                          onClick={handlePortal} 
+                          disabled={portalLoading} 
+                          style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '10px 20px', borderRadius: '6px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 500 }}
+                        >
+                          Cancel Subscription
+                        </button>
+                        <button 
+                          onClick={handlePortal} 
+                          disabled={portalLoading} 
+                          style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.9rem', cursor: 'pointer', marginLeft: 'auto' }}
+                        >
+                          View Invoices ↗
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ fontSize: '0.95rem', color: '#475569', marginBottom: '16px' }}>
+                        You are currently on the Free plan. Upgrade to unlock unlimited scans, historical trends, and priority processing.
+                      </p>
+                      <a href="/?go=pricing" className="btn-pricing btn-pricing-primary" style={{ padding: '10px 20px', fontSize: '0.9rem', textDecoration: 'none', display: 'inline-block' }}>
+                        Upgrade to Pro
+                      </a>
+                    </>
+                  )}
+                </div>
 
                 <div style={{ border: '1px solid #fca5a5', borderRadius: '12px', padding: '24px', background: '#fef2f2' }}>
                   <h4 style={{ margin: '0 0 16px 0', color: '#991b1b' }}>Danger Zone</h4>
@@ -523,6 +655,28 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Global Toast Notification */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          background: toast.type === 'success' ? '#10b981' : '#ef4444',
+          color: '#fff',
+          padding: '16px 24px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          zIndex: 9999,
+          animation: 'slideUp 0.3s ease-out'
+        }}>
+          <span style={{ fontSize: '1.2rem' }}>{toast.type === 'success' ? '✓' : '⚠'}</span>
+          <span style={{ fontWeight: 500, fontSize: '0.95rem' }}>{toast.message}</span>
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './Pricing.css';
+import WaitlistForm from '../components/WaitlistForm';
 
 interface PricingProps {
   user: { email: string; isPro: boolean } | null;
@@ -56,7 +57,7 @@ export default function Pricing({ user, onBack }: PricingProps) {
   return (
     <div className="pricing-container animate-fade-in">
       <div className="pricing-header">
-        <h1>Pro — Your AI Trust & Visibility Analyst</h1>
+        <h1>Pro - Your AI Trust & Visibility Analyst</h1>
         <p>Know exactly what AI says about your business when potential clients check. Cancel anytime.</p>
       </div>
       
@@ -88,7 +89,7 @@ export default function Pricing({ user, onBack }: PricingProps) {
         <div className="pricing-col growth-col">
           <span className="popular-badge">Recommended</span>
           <div className="col-header">
-            <h2>Pro — Early Access Price</h2>
+            <h2>Pro - Early Access Price</h2>
             <div className="price-title">
               <span style={{ textDecoration: 'line-through', fontSize: '0.6em', color: '#94a3b8', marginRight: '8px' }}>€19</span>
               €14.99 <span className="price-period">/ month</span>
@@ -97,11 +98,11 @@ export default function Pricing({ user, onBack }: PricingProps) {
           </div>
           
           <ul className="feature-list">
-            <li>Monthly report — see exactly what AI says when clients check you</li>
-            <li>Reliable, multi-sample scoring across multiple AI tools — not just one answer</li>
+            <li>Monthly report - see exactly what AI says when clients check you</li>
+            <li>Reliable, multi-sample scoring across multiple AI tools - not just one answer</li>
             <li>See which competitors appear instead of you, and on which exact query</li>
-            <li>Top 10 list check — does AI name you when asked to list the best in your category?</li>
-            <li>AI-drafted fixes: llms.txt, FAQ content, schema markup — ready to paste in</li>
+            <li>Top 10 list check - does AI name you when asked to list the best in your category?</li>
+            <li>AI-drafted fixes: llms.txt, FAQ content, schema markup - ready to paste in</li>
           </ul>
           
           <div className="col-footer">
@@ -114,13 +115,7 @@ export default function Pricing({ user, onBack }: PricingProps) {
                 {loading ? 'Loading...' : 'Manage Subscription'}
               </button>
             ) : (
-              <button 
-                onClick={handleCheckout} 
-                disabled={loading}
-                className="btn-pricing btn-pricing-primary"
-              >
-                {loading ? 'Loading...' : (user ? 'Upgrade to Pro →' : 'Log in to upgrade →')}
-              </button>
+              <WaitlistForm />
             )}
           </div>
         </div>

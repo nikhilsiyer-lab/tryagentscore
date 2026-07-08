@@ -57,7 +57,7 @@ export default function Login() {
           <div className="login-card animate-slide-up">
             <h2>Log in to AgentScore</h2>
             <p className="login-subtitle">
-              We'll send you a magic link — no password needed.
+              We'll send you a magic link - no password needed.
             </p>
 
             <form onSubmit={handleLogin} className="login-form">

@@ -16,7 +16,7 @@ export default function About() {
             The Problem
           </h2>
           <p>
-            When someone asks an AI assistant (like ChatGPT, Claude, or Google Gemini) for a local service, restaurant, or software solution — the AI recommends just a handful of options. Most businesses are completely blind to whether they are being recommended or left out.
+            When someone asks an AI assistant (like ChatGPT, Claude, or Google Gemini) for a local service, restaurant, or software solution - the AI recommends just a handful of options. Most businesses are completely blind to whether they are being recommended or left out.
           </p>
         </div>
 

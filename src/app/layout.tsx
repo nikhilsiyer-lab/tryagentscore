@@ -4,8 +4,11 @@ import "../index.css";
 import "../App.css";
 
 export const metadata: Metadata = {
-  title: "tryagentscore — Is AI recommending your business?",
-  description: "Find out if ChatGPT, Gemini, and Perplexity are recommending your business. Get your AI visibility score in 30 seconds — free, no sign-up.",
+  title: "tryagentscore - Is AI recommending your business?",
+  description: "Find out if ChatGPT, Gemini, and Perplexity are recommending your business. Get your AI visibility score in 30 seconds - free, no sign-up.",
+  icons: {
+    icon: "/favicon.svg",
+  },
   openGraph: {
     title: "Is AI search recommending your business?",
     description: "Run 14 AI citation tests on your website in 30 seconds. See your score, find gaps, and get a plain-English fix plan. Free.",

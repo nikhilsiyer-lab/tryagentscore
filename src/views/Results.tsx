@@ -213,11 +213,11 @@ export default function Results({ user, report, description, onRescan, onNavigat
           {citedCount === 0 && !isScanning ? (
             <p className="hero-statement">
               AI search tools did not mention your business in any of our<br />
-              {totalCount} test searches. That is common for new sites — and it is fixable.
+              {totalCount} test searches. That is common for new sites - and it is fixable.
             </p>
           ) : citedCount >= Math.floor(totalCount * 0.7) && !isScanning ? (
             <p className="hero-statement">
-              Strong result — AI tools cited your business in {citedCount} of {totalCount} searches.
+              Strong result - AI tools cited your business in {citedCount} of {totalCount} searches.
             </p>
           ) : (
             <p className="hero-statement">
@@ -245,11 +245,11 @@ export default function Results({ user, report, description, onRescan, onNavigat
                   </div>
                 ) : compositeScore > 31 ? (
                   <div className="benchmark-text">
-                    Industry average: <strong>31/100</strong> — you are above average.
+                    Industry average: <strong>31/100</strong> - you are above average.
                   </div>
                 ) : (
                   <div className="benchmark-text">
-                    Industry average: <strong>31/100</strong> — there is room to improve.
+                    Industry average: <strong>31/100</strong> - there is room to improve.
                   </div>
                 )}
               </>
@@ -681,7 +681,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
               const secondaryFixes = fixList.slice(1);
 
               const tierMeta: Record<string, { icon: string; label: string; sublabel: string; color: string; bg: string; border: string }> = {
-                quick_win: { icon: '⚡', label: 'Do it now', sublabel: 'Under 1 hour — you can do this yourself today', color: '#065f46', bg: '#ecfdf5', border: '#a7f3d0' },
+                quick_win: { icon: '⚡', label: 'Do it now', sublabel: 'Under 1 hour — you can do this yourself today', color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
                 this_week: { icon: '📋', label: 'This week', sublabel: 'A few hours — no developer needed', color: '#1e40af', bg: '#eff6ff', border: '#bfdbfe' },
                 hire_dev: { icon: '👷', label: 'Needs a developer', sublabel: 'Hand this to your web developer', color: '#6b21a8', bg: '#faf5ff', border: '#e9d5ff' },
               };

@@ -487,6 +487,7 @@ export async function GET(request: NextRequest) {
 
         let citedCount = 0;
         const competitorsMap = new Map<string, number>();
+        const competitorFullTextMap = new Map<string, string>();
 
         // Execute all 4 regular queries + the Top 10 query in parallel
         const top10Promise = (async () => {
@@ -510,7 +511,7 @@ export async function GET(request: NextRequest) {
         const queryPromises = allQueries.map(async (queryText, i) => {
           let cited = false;
           let webSources: string[] = [];
-          let textMentions: string[] = [];
+          let textMentions: { name: string, fullText: string }[] = [];
           try {
             const res = await Promise.race([
               searchModel.generateContent(queryText),
@@ -542,9 +543,13 @@ export async function GET(request: NextRequest) {
             // Extract competitor mentions from the text body (like checkTop10Citation does)
             const lines = responseText.split('\n').filter(l => /^\d+[\.\)\-]|\*\s/.test(l.trim()));
             textMentions = lines
-              .map(l => l.replace(/^\d+[\.\)\-\s]+|\*\s+/, '').split(/[—:\-]/)[0].trim().replace(/\*+/g, '').trim())
-              .filter(name => {
-                const n = name.toLowerCase();
+              .map(l => {
+                const fullText = l.replace(/^\d+[\.\)\-\s]+|\*\s+/, '').replace(/\*+/g, '').trim();
+                const name = fullText.split(/[—:\-]/)[0].trim();
+                return { name, fullText };
+              })
+              .filter(comp => {
+                const n = comp.name.toLowerCase();
                 return n.length > 2 && !n.includes(domainRoot) && (!businessNameLower || !n.includes(businessNameLower));
               });
 
@@ -558,11 +563,6 @@ export async function GET(request: NextRequest) {
         });
 
         const queryResults = await Promise.all(queryPromises);
-
-        // Process and stream the results
-        const directoriesMap = new Map<string, number>();
-        const competitorQueryMap = new Map<string, string>(); // domain -> first query that surfaced it
-        const directoryQueryMap = new Map<string, string>(); // domain -> first query that surfaced it
 
         queryResults.forEach((r) => {
           if (r.cited) citedCount++;
@@ -590,11 +590,14 @@ export async function GET(request: NextRequest) {
 
           // Text mentions are Competitors (the actual businesses the AI recommends)
           if (r.textMentions) {
-            r.textMentions.forEach((compName: string) => {
-              if (compName.length > 2) {
-                competitorsMap.set(compName, (competitorsMap.get(compName) || 0) + 1);
-                if (!competitorQueryMap.has(compName)) {
-                  competitorQueryMap.set(compName, r.query);
+            r.textMentions.forEach((comp: { name: string, fullText: string }) => {
+              if (comp.name.length > 2) {
+                competitorsMap.set(comp.name, (competitorsMap.get(comp.name) || 0) + 1);
+                if (!competitorQueryMap.has(comp.name)) {
+                  competitorQueryMap.set(comp.name, r.query);
+                }
+                if (!competitorFullTextMap.has(comp.name)) {
+                  competitorFullTextMap.set(comp.name, comp.fullText);
                 }
               }
             });
@@ -606,10 +609,10 @@ export async function GET(request: NextRequest) {
           finalCompetitors: Array.from(competitorsMap.entries())
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3)
-            .map(([compDomain, appearances]) => ({
-              domain: compDomain,
+            .map(([compName, appearances]) => ({
+              domain: competitorFullTextMap.get(compName) || compName, // Send the full text response to the UI
               appearances,
-              sourceQuery: competitorQueryMap.get(compDomain) || ''
+              sourceQuery: competitorQueryMap.get(compName) || ''
             })),
           finalDirectories: Array.from(directoriesMap.entries())
             .sort((a, b) => b[1] - a[1])
