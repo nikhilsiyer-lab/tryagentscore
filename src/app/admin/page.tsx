@@ -28,12 +28,14 @@ export default async function AdminDashboard({ searchParams }: PageProps) {
   let scansListQuery = supabase.from('scans').select('*').order('created_at', { ascending: false });
 
   if (startDateStr) {
-    totalScansQuery = totalScansQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
-    scansListQuery = scansListQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
+    const startFormatted = startDateStr.includes('T') ? startDateStr : `${startDateStr}T00:00:00Z`;
+    totalScansQuery = totalScansQuery.gte('created_at', startFormatted);
+    scansListQuery = scansListQuery.gte('created_at', startFormatted);
   }
   if (endDateStr) {
-    totalScansQuery = totalScansQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
-    scansListQuery = scansListQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
+    const endFormatted = endDateStr.includes('T') ? endDateStr : `${endDateStr}T23:59:59Z`;
+    totalScansQuery = totalScansQuery.lte('created_at', endFormatted);
+    scansListQuery = scansListQuery.lte('created_at', endFormatted);
   }
 
   const { count: totalScans, data: scansData } = await totalScansQuery;
@@ -44,12 +46,14 @@ export default async function AdminDashboard({ searchParams }: PageProps) {
   let loggedQuery = supabase.from('scans').select('*', { count: 'exact', head: true }).not('user_id', 'is', null);
 
   if (startDateStr) {
-    anonQuery = anonQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
-    loggedQuery = loggedQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
+    const startFormatted = startDateStr.includes('T') ? startDateStr : `${startDateStr}T00:00:00Z`;
+    anonQuery = anonQuery.gte('created_at', startFormatted);
+    loggedQuery = loggedQuery.gte('created_at', startFormatted);
   }
   if (endDateStr) {
-    anonQuery = anonQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
-    loggedQuery = loggedQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
+    const endFormatted = endDateStr.includes('T') ? endDateStr : `${endDateStr}T23:59:59Z`;
+    anonQuery = anonQuery.lte('created_at', endFormatted);
+    loggedQuery = loggedQuery.lte('created_at', endFormatted);
   }
 
   const { count: anonScans } = await anonQuery;
@@ -57,8 +61,14 @@ export default async function AdminDashboard({ searchParams }: PageProps) {
 
   // 2. Conversion: Scans claimed
   let claimedQuery = supabase.from('scans').select('*', { count: 'exact', head: true }).eq('is_claimed', true);
-  if (startDateStr) claimedQuery = claimedQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
-  if (endDateStr) claimedQuery = claimedQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
+  if (startDateStr) {
+    const startFormatted = startDateStr.includes('T') ? startDateStr : `${startDateStr}T00:00:00Z`;
+    claimedQuery = claimedQuery.gte('created_at', startFormatted);
+  }
+  if (endDateStr) {
+    const endFormatted = endDateStr.includes('T') ? endDateStr : `${endDateStr}T23:59:59Z`;
+    claimedQuery = claimedQuery.lte('created_at', endFormatted);
+  }
   const { count: claimedScans } = await claimedQuery;
 
   // 3. Subscriptions (Pro Users)
@@ -66,8 +76,14 @@ export default async function AdminDashboard({ searchParams }: PageProps) {
 
   // 4. Engagement: Recommendation Events
   let eventsQuery = supabase.from('user_events').select('event_type');
-  if (startDateStr) eventsQuery = eventsQuery.gte('created_at', `${startDateStr}T00:00:00Z`);
-  if (endDateStr) eventsQuery = eventsQuery.lte('created_at', `${endDateStr}T23:59:59Z`);
+  if (startDateStr) {
+    const startFormatted = startDateStr.includes('T') ? startDateStr : `${startDateStr}T00:00:00Z`;
+    eventsQuery = eventsQuery.gte('created_at', startFormatted);
+  }
+  if (endDateStr) {
+    const endFormatted = endDateStr.includes('T') ? endDateStr : `${endDateStr}T23:59:59Z`;
+    eventsQuery = eventsQuery.lte('created_at', endFormatted);
+  }
   const { data: events } = await eventsQuery;
   
   const eventCounts = {
