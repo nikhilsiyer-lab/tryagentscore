@@ -526,13 +526,22 @@ export async function GET(request: NextRequest) {
             // Cited if found in EITHER grounding chunks or text body
             cited = groundingCited || textCited;
             
+            // Extract competitor mentions from the text body (like checkTop10Citation does)
+            const lines = responseText.split('\n').filter(l => /^\d+[\.\)\-]|\*\s/.test(l.trim()));
+            const textMentions = lines
+              .map(l => l.replace(/^\d+[\.\)\-\s]+|\*\s+/, '').split(/[—:\-]/)[0].trim().replace(/\*+/g, '').trim())
+              .filter(name => {
+                const n = name.toLowerCase();
+                return n.length > 2 && !n.includes(domainRoot) && (!businessNameLower || !n.includes(businessNameLower));
+              });
+
             if (cited && !groundingCited) {
               console.log(`Citation found via text body match for "${domain}" in query: "${queryText}" (not in grounding chunks)`);
             }
           } catch (e) {
             console.error(`Error querying query ${i}:`, e);
           }
-          return { index: i + 1, query: queryText, cited, webSources };
+          return { index: i + 1, query: queryText, cited, webSources, textMentions: textMentions || [] };
         });
 
         const queryResults = await Promise.all(queryPromises);
@@ -563,6 +572,18 @@ export async function GET(request: NextRequest) {
               }
             } catch (_) {}
           });
+
+          // ALSO add the actual business names mentioned in the text body (Fix 3 — Text Body Competitors)
+          if (r.textMentions) {
+            r.textMentions.forEach((compName: string) => {
+              if (compName.length > 2) {
+                competitorsMap.set(compName, (competitorsMap.get(compName) || 0) + 1);
+                if (!competitorQueryMap.has(compName)) {
+                  competitorQueryMap.set(compName, r.query);
+                }
+              }
+            });
+          }
         });
 
         // 5. Generate Fixes and Classify Competitors concurrently
