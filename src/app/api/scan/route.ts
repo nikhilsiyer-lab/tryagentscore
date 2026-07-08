@@ -558,7 +558,6 @@ export async function GET(request: NextRequest) {
         const queryResults = await Promise.all(queryPromises);
 
         // Process and stream the results
-        const competitorsMap = new Map<string, number>();
         const directoriesMap = new Map<string, number>();
         const competitorQueryMap = new Map<string, string>(); // domain -> first query that surfaced it
         const directoryQueryMap = new Map<string, string>(); // domain -> first query that surfaced it
