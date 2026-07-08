@@ -3,8 +3,21 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Groq } from 'groq-sdk';
 import { getCurrentUser } from '../../../lib/auth';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
+let genAIInstance: GoogleGenerativeAI | null = null;
+function getGenAI() {
+  if (!genAIInstance) {
+    genAIInstance = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key-for-build');
+  }
+  return genAIInstance;
+}
+
+let groqInstance: Groq | null = null;
+function getGroq() {
+  if (!groqInstance) {
+    groqInstance = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy-key-for-build' });
+  }
+  return groqInstance;
+}
 
 export const maxDuration = 60; // Allow function to run up to 60s for Hobby tier
 export const dynamic = 'force-dynamic';
@@ -59,7 +72,7 @@ Return ONLY a JSON object with these exact keys:
 No markdown, no extra text.`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await Promise.race([
       model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -123,7 +136,7 @@ The 4 queries must represent these categories in order:
 4. Direct — a brand-specific query about ${businessName}`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await Promise.race([
       model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -150,7 +163,7 @@ The 4 queries must represent these categories in order:
 async function generateNicheQueries(businessName: string, category: string, city: string) {
   try {
     const response = await Promise.race([
-      groq.chat.completions.create({
+      getGroq().chat.completions.create({
         model: 'llama-3.1-8b-instant',
         messages: [
           {
@@ -222,7 +235,7 @@ async function generateFixSuggestions(htmlContent: string) {
   try {
     const cleanText = cleanHtmlText(htmlContent).substring(0, 3000);
     const response = await Promise.race([
-      groq.chat.completions.create({
+      getGroq().chat.completions.create({
         model: 'llama-3.1-8b-instant',
         messages: [
           {
@@ -455,7 +468,7 @@ export async function GET(request: NextRequest) {
         ]);
 
         // 4. Citation Checking with search-grounded Gemini Flash
-        const searchModel = genAI.getGenerativeModel({
+        const searchModel = getGenAI().getGenerativeModel({
           model: 'gemini-2.5-flash',
           tools: [{ googleSearch: {} }]
         });
@@ -548,7 +561,7 @@ export async function GET(request: NextRequest) {
             const domainsList = rawCompetitors.map(c => c.domain).join(', ');
             const classPrompt = `Classify these domains into either "competitor" (a direct competing business) or "directory" (an aggregator, review site, platform, or directory like Yelp, Tripadvisor, Doctolib, Jameda, Wikipedia, YellowPages). Return ONLY a JSON object mapping each domain string to either "competitor" or "directory". Domains: ${domainsList}`;
             
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const model = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash' });
             const classRes = await Promise.race([
               model.generateContent({
                 contents: [{ role: 'user', parts: [{ text: classPrompt }] }],

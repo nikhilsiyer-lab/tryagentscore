@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+let genAIInstance: GoogleGenerativeAI | null = null;
+function getGenAI() {
+  if (!genAIInstance) {
+    genAIInstance = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key-for-build');
+  }
+  return genAIInstance;
+}
 
 // Rate limit: 1 citation check per IP per hour
 const rateLimitMap = new Map<string, number>();
@@ -13,7 +19,7 @@ async function queryGemini(businessName: string, category: string, city: string)
   }
 
   // Use Gemini 2.0 Flash with search grounding
-  const model = genAI.getGenerativeModel({ 
+  const model = getGenAI().getGenerativeModel({ 
     model: 'gemini-2.0-flash',
     tools: [{ googleSearch: {} }] 
   });
