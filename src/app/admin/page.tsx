@@ -1,6 +1,7 @@
 import { createClient } from '../../lib/supabase/server';
 import { getCurrentUser } from '../../lib/auth';
 import { redirect } from 'next/navigation';
+import DateRangePicker from '../../components/DateRangePicker';
 
 interface PageProps {
   searchParams: Promise<{ start?: string; end?: string }>;
@@ -91,41 +92,8 @@ export default async function AdminDashboard({ searchParams }: PageProps) {
       </div>
 
       {/* Date Filter Panel */}
-      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 20px', marginBottom: '32px' }}>
-        <form method="GET" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Start Date</label>
-            <input 
-              type="date" 
-              name="start" 
-              defaultValue={startDateStr}
-              style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', color: '#334155' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>End Date</label>
-            <input 
-              type="date" 
-              name="end" 
-              defaultValue={endDateStr}
-              style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', color: '#334155' }}
-            />
-          </div>
-          <button 
-            type="submit" 
-            style={{ padding: '8px 16px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }}
-          >
-            Apply Filters
-          </button>
-          {(startDateStr || endDateStr) && (
-            <a 
-              href="/admin" 
-              style={{ padding: '8px 16px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', color: '#64748b', textDecoration: 'none', fontWeight: 500 }}
-            >
-              Clear
-            </a>
-          )}
-        </form>
+      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '32px' }}>
+        <DateRangePicker />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px', marginBottom: '40px' }}>
