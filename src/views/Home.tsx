@@ -158,18 +158,7 @@ export default function Home({ onStartScan }: HomeProps) {
                   ))}
                 </div>
 
-                {/* 3B - optional target client, only if international */}
-                {servesMarket === 'international' && (
-                  <input
-                    type="text"
-                    className="description-input"
-                    style={{ marginTop: '10px' }}
-                    placeholder="Optional - who is your typical client? e.g. NRI clients, US-based startups"
-                    value={targetClient}
-                    onChange={(e) => setTargetClient(e.target.value)}
-                    aria-label="Target client type"
-                  />
-                )}
+
               </div>
 
               {/* Honeypot field - visually hidden */}
