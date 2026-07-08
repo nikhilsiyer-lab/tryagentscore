@@ -58,7 +58,7 @@ export default function Pricing({ user, onBack }: PricingProps) {
     <div className="pricing-container animate-fade-in">
       <div className="pricing-header">
         <h1>Pro - Your AI Trust & Visibility Analyst</h1>
-        <p>Know exactly what AI says about your business when potential clients check. Cancel anytime.</p>
+        <p>See how your business appears in AI search and what to improve next. Cancel anytime.</p>
       </div>
       
       <div className="pricing-grid">
@@ -73,7 +73,7 @@ export default function Pricing({ user, onBack }: PricingProps) {
           </div>
           
           <ul className="feature-list">
-            <li>One-time visibility score check</li>
+            <li>One-time visibility check</li>
             <li>Basic search pattern analysis</li>
             <li>Instant recommendations preview</li>
           </ul>
@@ -98,11 +98,11 @@ export default function Pricing({ user, onBack }: PricingProps) {
           </div>
           
           <ul className="feature-list">
-            <li>Monthly report - see exactly what AI says when clients check you</li>
-            <li>Reliable, multi-sample scoring across multiple AI tools - not just one answer</li>
-            <li>See which competitors appear instead of you, and on which exact query</li>
-            <li>Top 10 list check - does AI name you when asked to list the best in your category?</li>
-            <li>AI-drafted fixes: llms.txt, FAQ content, schema markup - ready to paste in</li>
+            <li>Monthly visibility report</li>
+            <li>Multi-sample scoring across AI tools - Gemini, ChatGPT, Claude and Perplexity</li>
+            <li>Competitor comparisons</li>
+            <li>Top 10 list check</li>
+            <li>AI-drafted fixes ready to use</li>
           </ul>
           
           <div className="col-footer">
