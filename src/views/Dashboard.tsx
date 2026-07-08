@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createClient } from '../lib/supabase/client'
 import './Dashboard.css'
 
 interface DashboardProps {
@@ -39,6 +40,18 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
   const [loadingTrend, setLoadingTrend] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'recommendations' | 'settings'>('overview')
+  const supabase = createClient()
+
+  // Fix 1: Ensure dark theme is applied (login page sets light-theme, dashboard should always be dark)
+  useEffect(() => {
+    document.documentElement.classList.remove('light-theme')
+  }, [])
+
+  // Fix 2: Client-side logout to prevent blank screen after redirect
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    window.location.href = '/'
+  }
 
   // Fetch unique domains scanned by user
   useEffect(() => {
@@ -214,11 +227,9 @@ export default function Dashboard({ user, onStartScan }: DashboardProps) {
             <span className={`user-badge ${user?.isPro ? 'pro-badge' : ''}`}>
               {user?.isPro ? 'Pro Member' : 'Free Plan'}
             </span>
-            <form action="/auth/logout" method="POST" style={{ margin: 0 }}>
-              <button type="submit" className="text-btn" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                Log out
-              </button>
-            </form>
+            <button onClick={handleLogout} className="text-btn" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>
+              Log out
+            </button>
           </div>
         </div>
       </div>

@@ -38,6 +38,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
   const [email, setEmail] = useState('');
   const [expandedFixes, setExpandedFixes] = useState(false);
   const [showPassingChecks, setShowPassingChecks] = useState(false);
+  const [showCitationDetails, setShowCitationDetails] = useState(false);
   const [profile, setProfile] = useState<BusinessProfile | null>((report as any).profile || null);
   const [origin, setOrigin] = useState<string>('');
   const [scanError, setScanError] = useState<string | null>(null);
@@ -268,106 +269,9 @@ export default function Results({ user, report, description, onRescan, onNavigat
           </div>
         )}
 
-        {/* ZONE 1 - TECHNICAL READINESS */}
-        <section className="zone-1">
-          <p className="section-header-uppercase">Technical Readiness</p>
-
-          {isBlocked ? (
-            <div style={{ padding: '16px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '6px', color: '#b45309', marginBottom: '16px', fontSize: '0.95rem', lineHeight: '1.5' }}>
-              <strong>Technical checks unavailable</strong> — this site uses bot protection (e.g. Cloudflare, Datadome). AI crawlers may face the same restrictions, which can reduce citation rates. Adding an <code>llms.txt</code> file gives AI tools a direct summary without needing to crawl.
-            </div>
-          ) : (
-            <div className="tech-checks-wrapper">
-              {/* Problems first — failing and warning checks */}
-              {technicalChecks.length > 0 ? (() => {
-                const problems = technicalChecks.filter(c => c.status !== 'pass');
-                const passing = technicalChecks.filter(c => c.status === 'pass');
-
-                // Inline fix hint map per check ID
-                const inlineHints: Record<string, { label: string; hint: string }> = {
-                  schema: { label: '⚡ Quick win', hint: 'Add JSON-LD schema to your homepage — copy a template and paste it into your site\'s <head>. Takes ~20 min.' },
-                  llms: { label: '⚡ Quick win', hint: 'Create an llms.txt file at yoursite.com/llms.txt listing your business name, services, and location. Takes ~10 min.' },
-                  robots: { label: '📋 This week', hint: 'Review your robots.txt — make sure you\'re not blocking AI crawlers like GPTBot or Google-Extended.' },
-                  h1: { label: '⚡ Quick win', hint: 'Your page is missing an H1 tag. Add one that clearly states what you do and where — e.g. "Dentist in Berlin-Charlottenburg".' },
-                  contact: { label: '⚡ Quick win', hint: 'Add a phone number and address directly on the page in plain text — not just in an image or contact form.' },
-                  https: { label: '👷 Needs a developer', hint: 'Your site isn\'t on HTTPS. Ask your hosting provider to enable SSL — most offer this free.' },
-                  faq: { label: '📋 This week', hint: 'Add a FAQ section answering common questions about your services. AI tools love structured Q&A content.' },
-                };
-
-                return (
-                  <>
-                    {problems.length === 0 ? (
-                      <div className="tech-all-pass-banner">
-                        <span className="tech-all-pass-icon">✓</span>
-                        <span>All {passing.length} technical checks passed — no issues found.</span>
-                      </div>
-                    ) : (
-                      <div className="tech-problems-list">
-                        {problems.map((check) => {
-                          const hint = inlineHints[check.id];
-                          return (
-                            <div key={check.id} className={`tech-problem-card ${check.status}`}>
-                              <div className="tech-problem-header">
-                                <span className={`tech-problem-icon ${check.status}`}>
-                                  {check.status === 'warning' ? '⚠' : '✗'}
-                                </span>
-                                <div className="tech-problem-meta">
-                                  <span className="tech-problem-name">{check.name}</span>
-                                  <span className="tech-problem-desc">{check.description}</span>
-                                </div>
-                              </div>
-                              {hint && (
-                                <div className="tech-inline-hint">
-                                  <span className="tech-hint-tier">{hint.label}</span>
-                                  <span className="tech-hint-text">{hint.hint}</span>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Collapsible passing checks */}
-                    {passing.length > 0 && (
-                      <div className="tech-passing-toggle-wrapper">
-                        <button
-                          className="tech-passing-toggle"
-                          onClick={() => setShowPassingChecks(p => !p)}
-                        >
-                          {showPassingChecks ? '▲ Hide' : '▼ Show'} {passing.length} passing checks
-                        </button>
-                        {showPassingChecks && (
-                          <ul className="tech-passing-list">
-                            {passing.map(check => (
-                              <li key={check.id} className="tech-passing-item">
-                                <span className="status-icon pass">✓</span>
-                                <span className="audit-name">{check.name}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    )}
-                  </>
-                );
-              })() : (
-                <div className="audit-item" style={{ fontFamily: 'var(--font-mono)' }}>Loading technical checks...</div>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* spacer — Pro CTA moved to bottom */}
-
-        {/* ZONE 2 - CITATION SCAN */}
+        {/* SECTION 2 — HOW AI SEES YOU (citation scan) */}
         <section className="zone-2">
-          <p className="section-header-uppercase">
-            AI Citation Test
-          </p>
-          <p className="methodology-statement" style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '16px', lineHeight: '1.5' }}>
-            We ran 4 targeted searches, checked 12 technical signals, and mapped your top competitors — not just one AI answer.
-          </p>
+          <p className="section-header-uppercase">How AI sees you</p>
 
           {isScanning ? (
             <div className="streaming-container">
@@ -394,18 +298,18 @@ export default function Results({ user, report, description, onRescan, onNavigat
                     Not cited in any of {totalCount} AI searches
                   </p>
                   <p className="citation-callout-desc">
-                    The most common cause is insufficient crawlable content. 
+                    The most common cause is insufficient crawlable content.
                     Your action plan below addresses this directly.
                   </p>
                 </div>
               ) : (
                 <>
-                  <p className="citation-summary">Results: cited in {citedCount} of {totalCount} searches</p>
+                  <p className="citation-summary">Mentioned in {citedCount} of {totalCount} searches</p>
                   <ul className="intent-list">
                     {(intentCategories || []).map(cat => {
                       const isCited = cat.cited >= 1;
                       const isBrandFailure = !isCited && cat.name === 'Brand recognition';
-                      
+
                       if (isBrandFailure) {
                         return (
                           <li key={cat.name} className="intent-item brand-failure-callout" style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', marginTop: '12px' }}>
@@ -432,20 +336,43 @@ export default function Results({ user, report, description, onRescan, onNavigat
                       );
                     })}
                   </ul>
+
+                  {/* Collapsible individual query breakdown */}
+                  {prompts.length > 0 && (
+                    <div style={{ marginTop: '16px' }}>
+                      <button
+                        onClick={() => setShowCitationDetails(p => !p)}
+                        className="tech-passing-toggle"
+                      >
+                        {showCitationDetails ? '▲ Hide' : '▼ Show'} individual search queries ({prompts.length})
+                      </button>
+                      {showCitationDetails && (
+                        <div className="stream-list" style={{ marginTop: '10px' }}>
+                          {prompts.map((q, idx) => (
+                            <div key={idx} className="stream-item">
+                              <span className="stream-text">"{q.text}"</span>
+                              <span className={`stream-status ${q.cited ? 'pass' : 'cross'}`}>
+                                {q.cited ? '✓ cited' : '✗ not cited'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>
           )}
         </section>
 
-        {/* TOP 10 LIST CHECK */}
+        {/* TOP 10 LIST CHECK — part of "How AI sees you" */}
         {(top10Result || top10Loading || isScanning) && (
           <section className="zone-2 animate-slide-up" style={{ marginTop: '8px' }}>
             <p className="section-header-uppercase">
-              Top 10 list check
+              On the AI shortlist?
             </p>
 
-            {/* FREE user: show a teaser only, result is locked */}
             {!user?.isPro ? (
               <div style={{
                 background: '#f8fafc',
@@ -463,7 +390,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
                     🔒 Does AI include you in a top 10 list?
                   </p>
                   <p style={{ margin: 0, color: '#64748b', fontSize: '0.88rem', lineHeight: 1.5, maxWidth: '460px' }}>
-                    AI models sometimes list businesses when asked for a "top 10" style recommendation — separately from normal questions. This is a different signal: a business can appear here but not in direct questions, or vice versa. Pro checks this and tells you whether you are included.
+                    AI models sometimes list businesses when asked for a "top 10" style recommendation — separately from normal questions. Pro checks this and tells you whether you are included.
                   </p>
                 </div>
                 <button
@@ -474,18 +401,13 @@ export default function Results({ user, report, description, onRescan, onNavigat
                 </button>
               </div>
             ) : top10Loading || (isScanning && !top10Result) ? (
-              /* PRO + scanning in progress */
               <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px 24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#64748b', fontSize: '0.9rem' }}>
                   <span className="pulse-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#6366f1', display: 'inline-block', animation: 'pulse 1.5s infinite' }}></span>
                   Checking whether AI lists your business when asked for a top 10…
                 </div>
-                <p style={{ margin: '8px 0 0 0', fontSize: '0.82rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                  Query: {top10Result?.query || '—'}
-                </p>
               </div>
             ) : top10Result ? (
-              /* PRO + result ready */
               <div style={{
                 background: top10Result.cited ? '#f0fdf4' : '#fef9f0',
                 border: `1px solid ${top10Result.cited ? '#86efac' : '#fcd34d'}`,
@@ -518,15 +440,14 @@ export default function Results({ user, report, description, onRescan, onNavigat
 
                 {top10Result.cited ? (
                   <p style={{ margin: 0, fontSize: '0.88rem', color: '#166534', lineHeight: 1.5 }}>
-                    When we asked the AI to list the top 10 in your category, your business appeared. This means the AI is aware of you when prompted to be exhaustive — a meaningful signal even if you're not the default recommendation in everyday questions.
+                    When we asked the AI to list the top 10 in your category, your business appeared. A meaningful signal even if you're not the default recommendation in everyday questions.
                   </p>
                 ) : (
                   <p style={{ margin: 0, fontSize: '0.88rem', color: '#78350f', lineHeight: 1.5 }}>
-                    When we explicitly asked the AI to list the top 10 in your category, your business did not appear. This is a separate and more fundamental visibility gap — even when the AI tries to be exhaustive, it does not include you. Fixing this typically requires building more online citations and structured content.
+                    Even when we explicitly asked the AI to list the top 10 in your category, your business did not appear. Fixing this typically requires building more online citations and structured content.
                   </p>
                 )}
 
-                {/* Co-mentioned competitors — Pro only insight */}
                 {top10Result.coMentioned.length > 0 && (
                   <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${top10Result.cited ? '#bbf7d0' : '#fde68a'}` }}>
                     <p style={{ margin: '0 0 8px 0', fontSize: '0.82rem', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -540,7 +461,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
                       ))}
                     </div>
                     <p style={{ margin: '8px 0 0 0', fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                      These names appeared in the AI's response when asked to list the top 10. This is not a ranking — the order AI models give in list responses is not stable or reliable.
+                      These names appeared in the AI's response. This is not a ranking — the order AI models give is not stable or reliable.
                     </p>
                   </div>
                 )}
@@ -549,7 +470,97 @@ export default function Results({ user, report, description, onRescan, onNavigat
           </section>
         )}
 
-        {/* ZONE 3 - COMPETITOR GAP */}
+        {/* SECTION 3 — WHAT TO IMPROVE (technical readiness) */}
+        <section className="zone-1">
+          <p className="section-header-uppercase">What to improve</p>
+
+          {isBlocked ? (
+            <div style={{ padding: '16px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '6px', color: '#b45309', marginBottom: '16px', fontSize: '0.95rem', lineHeight: '1.5' }}>
+              <strong>Technical checks unavailable</strong> — this site uses bot protection (e.g. Cloudflare, Datadome). AI crawlers may face the same restrictions, which can reduce citation rates. Adding an <code>llms.txt</code> file gives AI tools a direct summary without needing to crawl.
+            </div>
+          ) : (
+            <div className="tech-checks-wrapper">
+              {technicalChecks.length > 0 ? (() => {
+                const problems = technicalChecks.filter(c => c.status !== 'pass');
+                const passing = technicalChecks.filter(c => c.status === 'pass');
+
+                const inlineHints: Record<string, { label: string; hint: string }> = {
+                  schema: { label: '⚡ Quick win', hint: 'Add JSON-LD schema to your homepage — copy a template and paste it into your site\'s <head>. Takes ~20 min.' },
+                  llms: { label: '⚡ Quick win', hint: 'Create an llms.txt file at yoursite.com/llms.txt listing your business name, services, and location. Takes ~10 min.' },
+                  robots: { label: '📋 This week', hint: 'Review your robots.txt — make sure you\'re not blocking AI crawlers like GPTBot or Google-Extended.' },
+                  h1: { label: '⚡ Quick win', hint: 'Your page is missing an H1 tag. Add one that clearly states what you do and where — e.g. "Dentist in Berlin-Charlottenburg".' },
+                  contact: { label: '⚡ Quick win', hint: 'Add a phone number and address directly on the page in plain text — not just in an image or contact form.' },
+                  https: { label: '👷 Needs a developer', hint: 'Your site isn\'t on HTTPS. Ask your hosting provider to enable SSL — most offer this free.' },
+                  faq: { label: '📋 This week', hint: 'Add a FAQ section answering common questions about your services. AI tools love structured Q&A content.' },
+                };
+
+                return (
+                  <>
+                    {problems.length === 0 ? (
+                      <div className="tech-all-pass-banner">
+                        <span className="tech-all-pass-icon">✓</span>
+                        <span>All {passing.length} technical checks passed — no issues found.</span>
+                      </div>
+                    ) : (
+                      <div className="tech-problems-list">
+                        {/* Show only the first issue expanded, rest collapsed */}
+                        {problems.map((check, idx) => {
+                          const hint = inlineHints[check.id];
+                          const isFirst = idx === 0;
+                          return (
+                            <div key={check.id} className={`tech-problem-card ${check.status}`} style={!isFirst ? { opacity: 0.85 } : {}}>
+                              <div className="tech-problem-header">
+                                <span className={`tech-problem-icon ${check.status}`}>
+                                  {check.status === 'warning' ? '⚠' : '✗'}
+                                </span>
+                                <div className="tech-problem-meta">
+                                  <span className="tech-problem-name">{check.name}</span>
+                                  <span className="tech-problem-desc">{check.description}</span>
+                                </div>
+                              </div>
+                              {/* Show inline fix hint only for first (most important) issue */}
+                              {hint && isFirst && (
+                                <div className="tech-inline-hint">
+                                  <span className="tech-hint-tier">{hint.label}</span>
+                                  <span className="tech-hint-text">{hint.hint}</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {passing.length > 0 && (
+                      <div className="tech-passing-toggle-wrapper">
+                        <button
+                          className="tech-passing-toggle"
+                          onClick={() => setShowPassingChecks(p => !p)}
+                        >
+                          {showPassingChecks ? '▲ Hide' : '▼ Show'} {passing.length} passing checks
+                        </button>
+                        {showPassingChecks && (
+                          <ul className="tech-passing-list">
+                            {passing.map(check => (
+                              <li key={check.id} className="tech-passing-item">
+                                <span className="status-icon pass">✓</span>
+                                <span className="audit-name">{check.name}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })() : (
+                <div className="audit-item" style={{ fontFamily: 'var(--font-mono)' }}>Loading technical checks...</div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* SECTION 4 — COMPETITIVE LANDSCAPE */}
         {!isScanning && (
 
           <section className="zone-3 animate-slide-up">
