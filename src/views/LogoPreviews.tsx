@@ -16,7 +16,7 @@ export default function LogoPreviews({ onBack }: { onBack: () => void }) {
           <h3 style={{ marginBottom: '24px', color: 'var(--text-secondary)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Baseline (Current)</h3>
           <div style={{ fontWeight: '800', fontFamily: 'var(--font-display)', fontSize: '1.6rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ width: '12px', height: '12px', background: 'var(--primary)', borderRadius: '50%' }}></span>
-            tryagentscore
+            AgentScore
           </div>
         </div>
 
@@ -28,7 +28,7 @@ export default function LogoPreviews({ onBack }: { onBack: () => void }) {
               <span style={{ position: 'absolute', width: '100%', height: '100%', background: 'var(--primary)', borderRadius: '50%', animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite', opacity: 0.75 }}></span>
               <span style={{ position: 'relative', width: '10px', height: '10px', background: 'var(--primary)', borderRadius: '50%' }}></span>
             </div>
-            tryagentscore
+            AgentScore
           </div>
           <style>{`
             @keyframes ping {

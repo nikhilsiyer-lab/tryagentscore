@@ -229,7 +229,7 @@ export default function Home({ onStartScan }: HomeProps) {
             Those tools pick a handful of businesses to recommend. Many good businesses — even well-reviewed ones — don't appear at all.
           </p>
           <p className="problem-highlight">
-            tryagentscore shows you what AI says about your business — and exactly what to fix.
+            AgentScore shows you what AI says about your business — and exactly what to fix.
           </p>
         </div>
       </section>

@@ -35,7 +35,7 @@ export default function Login() {
     <div className="login-page">
       <div className="login-header">
         <a href="/" className="login-logo">
-          <span style={{ color: 'var(--primary)' }}>✦</span> tryagentscore
+          <span style={{ color: 'var(--primary)' }}>✦</span> AgentScore
         </a>
       </div>
 
@@ -55,7 +55,7 @@ export default function Login() {
           </div>
         ) : (
           <div className="login-card animate-slide-up">
-            <h2>Log in to tryagentscore</h2>
+            <h2>Log in to AgentScore</h2>
             <p className="login-subtitle">
               We'll send you a magic link — no password needed.
             </p>

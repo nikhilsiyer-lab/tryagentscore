@@ -6,7 +6,7 @@ export default function Terms() {
       <div className="static-header">
         <span className="static-badge">Terms of Service</span>
         <h1>Terms of Use</h1>
-        <p>Simple, fair, and easy to understand rules for using tryagentscore.</p>
+        <p>Simple, fair, and easy to understand rules for using AgentScore.</p>
       </div>
 
       <div className="tldr-box">
