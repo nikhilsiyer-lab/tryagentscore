@@ -558,8 +558,11 @@ export async function GET(request: NextRequest) {
         const queryResults = await Promise.all(queryPromises);
 
         // Process and stream the results
-        // Also track which query each competitor appeared in (Fix 2 — competitor transparency)
+        const competitorsMap = new Map<string, number>();
+        const directoriesMap = new Map<string, number>();
         const competitorQueryMap = new Map<string, string>(); // domain -> first query that surfaced it
+        const directoryQueryMap = new Map<string, string>(); // domain -> first query that surfaced it
+
         queryResults.forEach((r) => {
           if (r.cited) citedCount++;
           
@@ -570,21 +573,21 @@ export async function GET(request: NextRequest) {
             cited: r.cited
           });
 
+          // Sources are Platforms/Directories (where the AI gets its info)
           r.webSources.forEach((urlStr: string) => {
             try {
-              let compDomain = urlStr.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+              let dirDomain = urlStr.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
               const blockedDomains = ['google.com', 'youtube.com', 'vertexaisearch.cloud.google.com', 'googleapis.com', 'gstatic.com', 'wikipedia.org', 'reddit.com', 'twitter.com', 'facebook.com', 'instagram.com', 'linkedin.com'];
-              if (compDomain !== domain && !blockedDomains.some(b => compDomain.includes(b))) {
-                competitorsMap.set(compDomain, (competitorsMap.get(compDomain) || 0) + 1);
-                // Track the first query that surfaced this competitor
-                if (!competitorQueryMap.has(compDomain)) {
-                  competitorQueryMap.set(compDomain, r.query);
+              if (dirDomain !== domain && !blockedDomains.some(b => dirDomain.includes(b))) {
+                directoriesMap.set(dirDomain, (directoriesMap.get(dirDomain) || 0) + 1);
+                if (!directoryQueryMap.has(dirDomain)) {
+                  directoryQueryMap.set(dirDomain, r.query);
                 }
               }
             } catch (_) {}
           });
 
-          // ALSO add the actual business names mentioned in the text body (Fix 3 — Text Body Competitors)
+          // Text mentions are Competitors (the actual businesses the AI recommends)
           if (r.textMentions) {
             r.textMentions.forEach((compName: string) => {
               if (compName.length > 2) {
@@ -597,47 +600,25 @@ export async function GET(request: NextRequest) {
           }
         });
 
-        // 5. Generate Fixes and Classify Competitors concurrently
-        const rawCompetitors = Array.from(competitorsMap.entries())
-          .map(([domain, appearances]) => ({ domain, appearances }))
-          .sort((a, b) => b.appearances - a.appearances)
-          .slice(0, 8); // Take top 8 to classify
-          
-        const classifyDomainsPromise = (async () => {
-          let finalCompetitors: CompetitorGap[] = [];
-          let finalDirectories: CompetitorGap[] = [];
-          if (rawCompetitors.length === 0) return { finalCompetitors, finalDirectories };
-          
-          try {
-            const domainsList = rawCompetitors.map(c => c.domain).join(', ');
-            const classPrompt = `Classify these domains into either "competitor" (a direct competing business) or "directory" (an aggregator, review site, platform, or directory like Yelp, Tripadvisor, Doctolib, Jameda, Wikipedia, YellowPages). Return ONLY a JSON object mapping each domain string to either "competitor" or "directory". Domains: ${domainsList}`;
-            
-            const model = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash' });
-            const classRes = await Promise.race([
-              model.generateContent({
-                contents: [{ role: 'user', parts: [{ text: classPrompt }] }],
-                generationConfig: { responseMimeType: 'application/json' }
-              }),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-            ]) as any;
-            
-            const classData = JSON.parse(classRes.response.text().trim());
-            for (const comp of rawCompetitors) {
-              // Attach the source query (for competitor transparency in the UI)
-              const sourceQuery = competitorQueryMap.get(comp.domain) || '';
-              const type = classData[comp.domain] || 'competitor';
-              if (type === 'directory') finalDirectories.push({ ...comp, sourceQuery });
-              else finalCompetitors.push({ ...comp, sourceQuery });
-            }
-          } catch (e) {
-            console.error('Competitor classification failed:', e);
-            finalCompetitors = rawCompetitors; // Fallback
-          }
-          return {
-            finalCompetitors: finalCompetitors.slice(0, 3),
-            finalDirectories: finalDirectories.slice(0, 3)
-          };
-        })();
+        // Generate Fixes (Top 10 is already running)
+        const classifyDomainsPromise = Promise.resolve({
+          finalCompetitors: Array.from(competitorsMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([compDomain, appearances]) => ({
+              domain: compDomain,
+              appearances,
+              sourceQuery: competitorQueryMap.get(compDomain) || ''
+            })),
+          finalDirectories: Array.from(directoriesMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([dirDomain, appearances]) => ({
+              domain: dirDomain,
+              appearances,
+              sourceQuery: directoryQueryMap.get(dirDomain) || ''
+            }))
+        });
 
         const [generatedFixes, { finalCompetitors, finalDirectories }, top10Result] = await Promise.all([
           generateFixSuggestions(html),
