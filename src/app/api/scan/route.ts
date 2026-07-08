@@ -331,13 +331,13 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Rate limit exceeded. Please create a free account to continue scanning.' }, { status: 429 });
       }
 
-      // 2. Domain Caching (24h)
+      // 2. Domain Caching (72h)
       // We skip caching if user is Pro (they get fresh scans)
       const { data: cachedScan } = await supabase
         .from('scans')
         .select('*')
         .eq('domain', domain)
-        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .gte('created_at', new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
