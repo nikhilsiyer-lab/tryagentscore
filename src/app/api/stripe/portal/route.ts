@@ -3,9 +3,15 @@ import Stripe from 'stripe'
 import { getCurrentUser } from '../../../../lib/auth'
 import { createClient } from '../../../../lib/supabase/server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20',
-})
+let stripeInstance: Stripe | null = null;
+function getStripe() {
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY || 'dummy-key-for-build', {
+      apiVersion: '2024-06-20',
+    });
+  }
+  return stripeInstance;
+}
 
 export async function POST(request: Request) {
   try {
@@ -25,7 +31,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No subscription found' }, { status: 404 })
     }
 
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await getStripe().billingPortal.sessions.create({
       customer: sub.stripe_customer_id,
       return_url: `${new URL(request.url).origin}/?view=dashboard`,
     })

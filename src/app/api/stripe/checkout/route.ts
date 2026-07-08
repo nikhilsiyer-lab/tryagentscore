@@ -2,9 +2,15 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getCurrentUser } from '../../../../lib/auth'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20',
-})
+let stripeInstance: Stripe | null = null;
+function getStripe() {
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY || 'dummy-key-for-build', {
+      apiVersion: '2024-06-20',
+    });
+  }
+  return stripeInstance;
+}
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +23,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}))
     
     // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       customer_email: user.email,
       client_reference_id: user.id, // We'll use this in the webhook to link the subscription to the user

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+let groqInstance: Groq | null = null;
+function getGroq() {
+  if (!groqInstance) {
+    groqInstance = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy-key-for-build' });
+  }
+  return groqInstance;
+}
 
 interface Profile {
   businessName: string;
@@ -45,7 +51,7 @@ Requirements:
 Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
 {"title": "...", "description": "..."}`;
 
-  const completion = await groq.chat.completions.create({
+  const completion = await getGroq().chat.completions.create({
     model: 'llama-3.1-8b-instant',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.7,
@@ -87,7 +93,7 @@ Requirements:
 Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
 {"faqs": [{"question": "...", "answer": "..."}, {"question": "...", "answer": "..."}, {"question": "...", "answer": "..."}, {"question": "...", "answer": "..."}]}`;
 
-  const completion = await groq.chat.completions.create({
+  const completion = await getGroq().chat.completions.create({
     model: 'llama-3.1-8b-instant',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.7,
