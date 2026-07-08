@@ -63,11 +63,19 @@ export default function Scanning({ url, options, onScanComplete }: ScanningProps
       }
     });
 
-    eventSource.addEventListener('error', (e) => {
+    eventSource.addEventListener('error', (e: any) => {
       console.error('SSE Error', e);
-      // Wait, is there a custom error event?
-      // Some server errors send a normal message or close the stream.
-      // We can just keep it open, or close if readyState is CLOSED
+      // Check if this is a custom server-sent error with data
+      if (e.data) {
+        try {
+          const data = JSON.parse(e.data);
+          setError(data.message || 'An error occurred on the server.');
+          eventSource.close();
+          clearInterval(timer);
+          return;
+        } catch (_) {}
+      }
+      
       if (eventSource.readyState === EventSource.CLOSED) {
         setError('Connection closed unexpectedly.');
       }

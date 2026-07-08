@@ -510,6 +510,7 @@ export async function GET(request: NextRequest) {
         const queryPromises = allQueries.map(async (queryText, i) => {
           let cited = false;
           let webSources: string[] = [];
+          let textMentions: string[] = [];
           try {
             const res = await Promise.race([
               searchModel.generateContent(queryText),
@@ -540,7 +541,7 @@ export async function GET(request: NextRequest) {
             
             // Extract competitor mentions from the text body (like checkTop10Citation does)
             const lines = responseText.split('\n').filter(l => /^\d+[\.\)\-]|\*\s/.test(l.trim()));
-            const textMentions = lines
+            textMentions = lines
               .map(l => l.replace(/^\d+[\.\)\-\s]+|\*\s+/, '').split(/[—:\-]/)[0].trim().replace(/\*+/g, '').trim())
               .filter(name => {
                 const n = name.toLowerCase();
@@ -553,7 +554,7 @@ export async function GET(request: NextRequest) {
           } catch (e) {
             console.error(`Error querying query ${i}:`, e);
           }
-          return { index: i + 1, query: queryText, cited, webSources, textMentions: textMentions || [] };
+          return { index: i + 1, query: queryText, cited, webSources, textMentions };
         });
 
         const queryResults = await Promise.all(queryPromises);
