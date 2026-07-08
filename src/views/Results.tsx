@@ -845,48 +845,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
                       Upgrade to Pro →
                     </button>
                   </>
-                ) : (
-                  <>
-                    <h4 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px', color: '#0f172a' }}>Save this scan</h4>
-                    <p style={{ fontSize: '0.95rem', color: '#475569', marginBottom: '20px', lineHeight: '1.6' }}>
-                      Enter your email to create a free account and save your results.
-                    </p>
-                    {claimSent ? (
-                      <div style={{ background: '#ecfdf5', color: '#065f46', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem' }}>
-                        ✓ Magic link sent! Check your email to log in and save this scan.
-                      </div>
-                    ) : (
-                      <form onSubmit={async (e) => {
-                        e.preventDefault();
-                        if (!claimEmail || !scanId) return;
-                        try {
-                          await supabase.auth.signInWithOtp({
-                            email: claimEmail,
-                            options: {
-                              emailRedirectTo: `${origin || window.location.origin}/auth/callback?claim_scan=${scanId}`
-                            }
-                          });
-                          setClaimSent(true);
-                        } catch (err) {
-                          console.error(err);
-                          alert('Error sending magic link.');
-                        }
-                      }} style={{ display: 'flex', gap: '8px', marginBottom: '20px', justifyContent: 'center' }}>
-                        <input 
-                          type="email" 
-                          placeholder="your@email.com" 
-                          value={claimEmail}
-                          onChange={(e) => setClaimEmail(e.target.value)}
-                          required
-                          style={{ padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', width: '250px', fontSize: '0.95rem' }}
-                        />
-                        <button type="submit" style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
-                          Save
-                        </button>
-                      </form>
-                    )}
-                  </>
-                )}
+                ) : null}
                 <div>
                   <button
                     onClick={onRescan}
