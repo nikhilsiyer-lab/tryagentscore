@@ -59,35 +59,39 @@ export async function GET(request: NextRequest) {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
   let cachedScan: any = null;
 
-  if (supabaseUrl && supabaseKey) {
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(supabaseUrl, supabaseKey);
+  try {
+    if (supabaseUrl && supabaseKey) {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Global daily cap — protect against cost spikes regardless of user tier
-    const { count: globalDailyCount } = await supabase
-      .from('scans')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
-
-    if (!isPro && globalDailyCount && globalDailyCount >= 50) {
-      return sendStreamError("We're experiencing high demand right now and have reached today's scan limit. Please check back in a few hours — we reset daily. Thank you for your patience!");
-    }
-
-    if (!isPro) {
-      // Serve cached result if available (within 72h) to save cost
-      const { data: cacheHit } = await supabase
+      // Global daily cap — protect against cost spikes regardless of user tier
+      const { count: globalDailyCount } = await supabase
         .from('scans')
-        .select('*')
-        .eq('domain', domain)
-        .gte('created_at', new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-        
-      if (cacheHit) {
-        cachedScan = cacheHit;
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+      if (!isPro && globalDailyCount && globalDailyCount >= 50) {
+        return sendStreamError("We're experiencing high demand right now and have reached today's scan limit. Please check back in a few hours — we reset daily. Thank you for your patience!");
+      }
+
+      if (!isPro) {
+        // Serve cached result if available (within 72h) to save cost
+        const { data: cacheHit } = await supabase
+          .from('scans')
+          .select('*')
+          .eq('domain', domain)
+          .gte('created_at', new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+          
+        if (cacheHit) {
+          cachedScan = cacheHit;
+        }
       }
     }
+  } catch (err) {
+    console.error('Supabase setup error in scan route, proceeding without cache/limits:', err);
   }
 
   if (!process.env.GEMINI_API_KEY || !process.env.GROQ_API_KEY) {
