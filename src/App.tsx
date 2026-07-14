@@ -28,10 +28,9 @@ export default function App() {
   const [report, setReport] = useState<ScanReport | null>(null);
   const [user, setUser] = useState<{ email: string; isPro: boolean; subscriptionState: SubscriptionState; periodEnd: string | null } | null>(null);
   const [prefillData, setPrefillData] = useState<any>(null);
-  const supabase = createClient();
-
   useEffect(() => {
     async function checkAuth() {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: sub } = await supabase
