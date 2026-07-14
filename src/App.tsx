@@ -292,13 +292,13 @@ export default function App() {
         gap: '24px',
         flexWrap: 'wrap'
       }}>
-        <button onClick={() => setView('about')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>About</button>
+        <a href="/about" style={{ textDecoration: 'none', color: 'var(--text-secondary)', fontSize: '13.5px' }}>About</a>
         {process.env.NEXT_PUBLIC_ENABLE_FEATURES !== 'true' && (
-          <button onClick={() => setView('pricing')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>Pricing</button>
+          <button onClick={() => setView('pricing')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Pricing</button>
         )}
-        <button onClick={() => setView('privacy')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>Privacy</button>
-        <button onClick={() => setView('terms')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>Terms</button>
-        <button onClick={() => setView('contact')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>Contact</button>
+        <a href="/privacy" style={{ textDecoration: 'none', color: 'var(--text-secondary)', fontSize: '13.5px' }}>Privacy</a>
+        <a href="/terms" style={{ textDecoration: 'none', color: 'var(--text-secondary)', fontSize: '13.5px' }}>Terms</a>
+        <button onClick={() => setView('contact')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Contact</button>
       </footer>
     </div>
     </>
