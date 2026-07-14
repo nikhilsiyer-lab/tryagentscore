@@ -492,7 +492,8 @@ Return ONLY a JSON object with a "businesses" array of strings.`;
             const snapshots = competitors.map(c => ({
               scan_id: scanId,
               competitor_domain: c.domain,
-              appearances: c.appearances
+              appearances: c.appearances,
+              llm_source: c.llm_source
             }));
             await supabase.from('competitor_snapshots').insert(snapshots);
           }
