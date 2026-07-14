@@ -8,9 +8,10 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'not_pro'>('idle')
   const [isCheckoutSuccess, setIsCheckoutSuccess] = useState(false)
-  const supabase = createClient()
+  const [supabase, setSupabase] = useState<any>(null)
 
   useEffect(() => {
+    setSupabase(createClient())
     document.documentElement.classList.add('light-theme');
     const params = new URLSearchParams(window.location.search);
     if (params.get('checkout') === 'success') {
@@ -35,6 +36,10 @@ export default function Login() {
       if (!data.hasSubscription && email !== 'nikhilsiyer@gmail.com') {
         setStatus('not_pro')
         return
+      }
+
+      if (!supabase) {
+        throw new Error('Supabase client has not initialized yet. Please try again.')
       }
 
       const { error } = await supabase.auth.signInWithOtp({
