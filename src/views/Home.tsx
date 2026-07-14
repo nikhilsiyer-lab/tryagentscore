@@ -239,19 +239,21 @@ export default function Home({ user, initialData, onStartScan }: HomeProps) {
               </button>
             </form>
             {error && <p className="url-error-msg">{error}</p>}
-            <div style={{ marginTop: '18px', textAlign: 'center' }}>
-              <a 
-                href="/demo" 
-                style={{ fontSize: '14.5px', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="20" x2="18" y2="10"></line>
-                  <line x1="12" y1="20" x2="12" y2="4"></line>
-                  <line x1="6" y1="20" x2="6" y2="14"></line>
-                </svg>
-                Or see a live example first →
-              </a>
-            </div>
+            {process.env.NEXT_PUBLIC_BETA_MODE !== 'true' && (
+              <div style={{ marginTop: '18px', textAlign: 'center' }}>
+                <a 
+                  href="/demo" 
+                  style={{ fontSize: '14.5px', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                  </svg>
+                  Or see a live example first →
+                </a>
+              </div>
+            )}
           </div>
 
           <div className="hero-trust-bar">

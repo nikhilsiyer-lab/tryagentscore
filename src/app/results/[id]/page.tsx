@@ -148,7 +148,9 @@ export default function SharedResultsPage() {
             <span>tryagent<span style={{ color: 'var(--primary)' }}>score</span></span>
           </div>
           <nav style={{ display: 'flex', gap: '32px', alignItems: 'center', fontSize: '0.95rem', fontWeight: 500, color: '#475569' }}>
-            <a href="#" onClick={(e) => { e.preventDefault(); window.location.href = '/?go=pricing'; }} style={{ textDecoration: 'none', color: 'inherit' }}>Pricing</a>
+            {process.env.NEXT_PUBLIC_BETA_MODE !== 'true' && (
+              <a href="#" onClick={(e) => { e.preventDefault(); window.location.href = '/?go=pricing'; }} style={{ textDecoration: 'none', color: 'inherit' }}>Pricing</a>
+            )}
           </nav>
         </div>
       </header>

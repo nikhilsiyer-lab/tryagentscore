@@ -708,7 +708,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
               Track how your visibility changes over time.
             </p>
             
-            {(!user || !user.isPro) ? (
+            {isFreeUser ? (
               <div style={{ position: 'relative', height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {/* Blurred Dummy Chart Backdrop */}
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, filter: 'blur(6px)', opacity: 0.2, pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: '20px', padding: '20px' }}>
@@ -1401,7 +1401,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
             </p>
           </div>
 
-          {(!user || !user.isPro) ? (
+          {isFreeUser ? (
             <div style={{ position: 'relative', height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {/* Blurred Dummy Chart Backdrop */}
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, filter: 'blur(6px)', opacity: 0.25, pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: '20px', padding: '20px' }}>
