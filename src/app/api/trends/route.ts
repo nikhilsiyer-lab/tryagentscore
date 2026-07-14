@@ -11,6 +11,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Domain parameter is required' }, { status: 400 })
     }
 
+    if (domain === 'acmeaccounting.com') {
+      const mockScans = [
+        { id: 'scan-1', composite_score: 30, citation_rate: 30, created_at: '2026-02-01T00:00:00Z', technical_checks: [{ id: '__grid_data', description: JSON.stringify([
+          { prompt_type: 'transactional', cited: false }, { prompt_type: 'local_intent', cited: false }, { prompt_type: 'comparison', cited: false }, { prompt_type: 'brand', cited: true }, { prompt_type: 'top10', cited: false }
+        ]) }] },
+        { id: 'scan-2', composite_score: 35, citation_rate: 35, created_at: '2026-03-01T00:00:00Z', technical_checks: [{ id: '__grid_data', description: JSON.stringify([
+          { prompt_type: 'transactional', cited: false }, { prompt_type: 'local_intent', cited: false }, { prompt_type: 'comparison', cited: true }, { prompt_type: 'brand', cited: true }, { prompt_type: 'top10', cited: false }
+        ]) }] },
+        { id: 'scan-3', composite_score: 44, citation_rate: 44, created_at: '2026-04-01T00:00:00Z', technical_checks: [{ id: '__grid_data', description: JSON.stringify([
+          { prompt_type: 'transactional', cited: false }, { prompt_type: 'local_intent', cited: false }, { prompt_type: 'comparison', cited: true }, { prompt_type: 'brand', cited: true }, { prompt_type: 'top10', cited: true }
+        ]) }] },
+        { id: 'scan-4', composite_score: 44, citation_rate: 44, created_at: '2026-05-01T00:00:00Z', technical_checks: [{ id: '__grid_data', description: JSON.stringify([
+          { prompt_type: 'transactional', cited: false }, { prompt_type: 'local_intent', cited: false }, { prompt_type: 'comparison', cited: true }, { prompt_type: 'brand', cited: true }, { prompt_type: 'top10', cited: true }
+        ]) }] },
+        { id: 'scan-5', composite_score: 55, citation_rate: 55, created_at: '2026-06-01T00:00:00Z', technical_checks: [{ id: '__grid_data', description: JSON.stringify([
+          { prompt_type: 'transactional', cited: true }, { prompt_type: 'local_intent', cited: false }, { prompt_type: 'comparison', cited: true }, { prompt_type: 'brand', cited: true }, { prompt_type: 'top10', cited: true }
+        ]) }] },
+        { id: 'scan-6', composite_score: 55, citation_rate: 55, created_at: '2026-07-01T00:00:00Z', technical_checks: [{ id: '__grid_data', description: JSON.stringify([
+          { prompt_type: 'transactional', cited: true }, { prompt_type: 'local_intent', cited: false }, { prompt_type: 'comparison', cited: true }, { prompt_type: 'brand', cited: true }, { prompt_type: 'top10', cited: true }
+        ]) }] }
+      ];
+      return NextResponse.json(mockScans);
+    }
+
     const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

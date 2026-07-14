@@ -356,3 +356,21 @@
   margin: 0;
   line-height: 1.5;
 }
+
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4);
+    border-color: var(--primary);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(168, 85, 247, 0);
+    border-color: var(--primary);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0);
+  }
+}
+.highlight-pulse {
+  animation: pulseGlow 1.2s ease-in-out infinite;
+  border-color: var(--primary) !important;
+}

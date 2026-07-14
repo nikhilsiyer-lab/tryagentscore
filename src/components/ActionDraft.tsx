@@ -170,10 +170,51 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
   const [faqs, setFaqs] = useState<Array<{ question: string; answer: string }>>([]);
   const [copied, setCopied] = useState<string | null>(null); // which field was copied
   const [error, setError] = useState<string | null>(null);
+  
+  const [verifying, setVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<{ verified: boolean; message: string } | null>(null);
 
   const meta = CARD_META[type];
 
+  function trackEvent(eventType: string, eventData: any) {
+    if (process.env.NEXT_PUBLIC_ENABLE_FEATURES === 'true') {
+      console.log(`[Analytics] ${eventType}`, eventData);
+    }
+    fetch('/api/admin/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: eventType, event_data: eventData })
+    }).catch(() => {});
+  }
+
+  async function verifyFix() {
+    setVerifying(true);
+    setVerificationResult(null);
+    try {
+      const res = await fetch('/api/verify-fix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain, fixType: type }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVerificationResult({ verified: data.verified, message: data.message });
+        trackEvent('fix_verified', { fix_type: type, domain, verified: data.verified });
+        // Don't auto-collapse — let the user see the result and manually mark as done
+      } else {
+        setVerificationResult({ verified: false, message: 'Verification error. Please try again.' });
+        trackEvent('fix_verified', { fix_type: type, domain, verified: false, error: 'api_error' });
+      }
+    } catch (e) {
+      setVerificationResult({ verified: false, message: 'Failed to connect to verification service.' });
+      trackEvent('fix_verified', { fix_type: type, domain, verified: false, error: 'network_error' });
+    } finally {
+      setVerifying(false);
+    }
+  }
+
   async function generate() {
+    trackEvent('fix_draft_generated', { fix_type: type, domain });
     setStatus('loading');
     setError(null);
     try {
@@ -217,6 +258,7 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
     navigator.clipboard.writeText(text).then(() => {
       setCopied(key);
       setTimeout(() => setCopied(null), 2000);
+      trackEvent('fix_draft_copied', { fix_type: type, domain, copy_key: key });
     });
   }
 
@@ -231,7 +273,7 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
   }
 
   return (
-    <div className={`draft-card ${detected ? 'draft-card--detected' : ''} ${status === 'done' ? 'draft-card--done' : ''}`}>
+    <div id={`action-draft-${type}`} className={`draft-card ${detected ? 'draft-card--detected' : ''} ${status === 'done' ? 'draft-card--done' : ''}`}>
       {/* Card header */}
       <div className="draft-card-header">
         <div className="draft-card-header-left">
@@ -301,7 +343,9 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
               {copied === 'desc' ? '✓ Copied!' : '📋 Copy description'}
             </button>
           </div>
-          <button className="draft-done-btn" onClick={() => setStatus('done')}>Mark as done ✓</button>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+            <button className="draft-done-btn" onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain }); setStatus('done'); }} style={{ flex: 1 }}>Mark as done ✓</button>
+          </div>
         </div>
       )}
 
@@ -355,7 +399,9 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
               {copied === 'faq-text' ? '✓ Copied!' : '📋 Copy as plain text'}
             </button>
           </div>
-          <button className="draft-done-btn" onClick={() => setStatus('done')}>Mark as done ✓</button>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+            <button className="draft-done-btn" onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain }); setStatus('done'); }} style={{ flex: 1 }}>Mark as done ✓</button>
+          </div>
         </div>
       )}
 
@@ -378,7 +424,57 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
               </button>
             )}
           </div>
-          <button className="draft-done-btn" onClick={() => setStatus('done')}>Mark as done ✓</button>
+          <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="draft-done-btn" 
+                onClick={verifyFix} 
+                disabled={verifying}
+                style={{ flex: 1, backgroundColor: 'var(--primary)', color: 'white' }}
+              >
+                {verifying ? 'Verifying live fix...' : 'Verify Live Fix 🔍'}
+              </button>
+              <button className="draft-done-btn" onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain }); setStatus('done'); }} style={{ flex: 1, backgroundColor: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                Mark as done ✓
+              </button>
+            </div>
+            {verificationResult && (
+              <div 
+                className={verificationResult.verified ? "highlight-pulse" : ""}
+                style={{ 
+                  padding: '16px', 
+                  borderRadius: '12px', 
+                  fontSize: '14px', 
+                  fontWeight: 600, 
+                  background: verificationResult.verified ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                  border: `2px solid ${verificationResult.verified ? 'var(--success)' : 'var(--warning)'}`,
+                  color: verificationResult.verified ? 'var(--success)' : 'var(--warning)',
+                  boxShadow: verificationResult.verified ? '0 10px 20px -10px rgba(16, 185, 129, 0.3)' : 'none',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: verificationResult.verified ? '6px' : '0' }}>
+                  <span>{verificationResult.verified ? '🎉 CONGRATULATIONS!' : '⚠️ VERIFICATION WARNING'}</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '13px', opacity: 0.9 }}>
+                  {verificationResult.message}
+                </p>
+                {verificationResult.verified && (
+                  <>
+                    <p style={{ margin: '6px 0 0 0', fontSize: '12px', opacity: 0.8, fontStyle: 'italic' }}>
+                      Fix confirmed live on domain! Run a new scan to update your footprint.
+                    </p>
+                    <button
+                      onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain, via: 'verification_banner' }); setStatus('done'); }}
+                      style={{ marginTop: '10px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: 'var(--success)', color: 'white', cursor: 'pointer' }}
+                    >
+                      Mark as done ✓
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

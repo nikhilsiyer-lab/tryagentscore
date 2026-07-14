@@ -30,6 +30,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Scan results not found' }, { status: 404 });
     }
 
+    const gridCheck = data.technical_checks?.find((c: any) => c.id === '__grid_data');
+    const queryDetails = gridCheck ? JSON.parse(gridCheck.description) : null;
+    const profileCheck = data.technical_checks?.find((c: any) => c.id === '__profile_data');
+    const profile = profileCheck ? JSON.parse(profileCheck.description) : null;
+    const cleanChecks = data.technical_checks?.filter((c: any) => c.id !== '__grid_data' && c.id !== '__profile_data') || [];
+
     // Map DB fields back to the frontend ScanReport interface format
     const report = {
       id: data.id,
@@ -40,9 +46,11 @@ export async function GET(request: NextRequest) {
       citationRate: data.citation_rate,
       citedCount: data.cited_count,
       totalCount: data.total_count,
-      technicalChecks: data.technical_checks,
+      technicalChecks: cleanChecks,
       topFixes: data.top_fixes,
       competitors: data.competitors,
+      queryDetails: queryDetails,
+      profile: profile,
       top10Result: data.top_10_result || {
         query: `Give me the top 10 services related to ${data.domain}`,
         cited: data.citation_rate > 30,

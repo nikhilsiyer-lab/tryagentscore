@@ -39,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="light-theme">
       <body style={{ margin: 0, padding: 0 }}>
         {children}
         <Analytics />

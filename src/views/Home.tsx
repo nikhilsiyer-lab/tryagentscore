@@ -2,15 +2,18 @@ import { useState, useEffect } from 'react';
 import './Home.css';
 
 interface HomeProps {
-  onStartScan: (url: string, options: { description?: string; businessType?: string; honeypot?: string; isBot?: boolean; entityType?: string; basedIn?: string; servesMarket?: string; targetClient?: string }) => void;
+  user?: { email: string; isPro: boolean; subscriptionState?: any } | null;
+  initialData?: { url?: string } | null;
+  onStartScan: (url: string, options: { description?: string; businessType?: string; honeypot?: string; isBot?: boolean; entityType?: string; basedIn?: string; servesMarket?: string; targetClient?: string; knownCompetitors?: string }) => void;
 }
 
-export default function Home({ onStartScan }: HomeProps) {
+export default function Home({ user, initialData, onStartScan }: HomeProps) {
   const [inputUrl, setInputUrl] = useState('');
   const [entityType, setEntityType] = useState('');
   const [basedIn, setBasedIn] = useState('');
   const [servesMarket, setServesMarket] = useState<'local' | 'national' | 'international'>('local');
   const [targetClient, setTargetClient] = useState('');
+  const [knownCompetitors, setKnownCompetitors] = useState('');
   const [honeypot, setHoneypot] = useState('');
   const [mountTime, setMountTime] = useState(0);
   const [error, setError] = useState('');
@@ -20,6 +23,12 @@ export default function Home({ onStartScan }: HomeProps) {
     setMountTime(Date.now());
   }, []);
 
+  useEffect(() => {
+    if (initialData?.url) {
+      setInputUrl(initialData.url);
+    }
+  }, [initialData]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputUrl.trim()) {
@@ -28,6 +37,14 @@ export default function Home({ onStartScan }: HomeProps) {
     }
     if (!entityType.trim()) {
       setError('Please tell us what type of business this is.');
+      return;
+    }
+    if (servesMarket !== 'international' && !basedIn.trim()) {
+      setError('Location is required when serving a local or national market.');
+      return;
+    }
+    if (servesMarket === 'international' && !targetClient.trim()) {
+      setError('Target client audience is required for international targeting.');
       return;
     }
 
@@ -47,7 +64,7 @@ export default function Home({ onStartScan }: HomeProps) {
       // Build a structured description from the explicit fields
       const parts = [entityType.trim()];
       if (basedIn.trim()) parts.push(`based in ${basedIn.trim()}`);
-      if (servesMarket === 'international' && targetClient.trim()) {
+      if (targetClient.trim()) {
         parts.push(`serving ${targetClient.trim()}`);
       } else if (servesMarket === 'national') {
         parts.push('serving clients nationally');
@@ -60,12 +77,14 @@ export default function Home({ onStartScan }: HomeProps) {
         entityType: entityType.trim(),
         basedIn: basedIn.trim(),
         servesMarket,
-        targetClient: servesMarket === 'international' ? targetClient.trim() : '',
+        targetClient: targetClient.trim(),
+        knownCompetitors: knownCompetitors.trim(),
         honeypot,
         isBot,
       });
     } catch (_) {
       setError('Invalid URL format. Example: yourbusiness.com');
+      setIsLoading(false);
     }
   };
 
@@ -78,11 +97,11 @@ export default function Home({ onStartScan }: HomeProps) {
 
           <div className="hero-badge">
             <span className="hero-badge-dot"></span>
-            Free · No sign-up · Results in 30 seconds
+            {user?.isPro ? 'Logged in as Pro · Run a new check' : 'Free · No sign-up · Results in 30 seconds'}
           </div>
 
           <h1 className="hero-title">
-            See what AI tools find when they look up your business
+            See what AI tools say about your business
           </h1>
           <p className="hero-subtitle">
             We show you how your business appears in AI search - and the fastest way to improve it
@@ -122,11 +141,13 @@ export default function Home({ onStartScan }: HomeProps) {
                 />
               </div>
 
-              {/* Step 3 - Location (soft required) */}
+               {/* Step 3 - Location (required for local/national, optional otherwise) */}
               <div className="scan-step" style={{ marginTop: '14px' }}>
                 <div className="scan-step-label">
                   Based in
-                  <span className="scan-step-optional">Optional - improves accuracy</span>
+                  <span className={servesMarket !== 'international' ? "scan-step-required" : "scan-step-optional"}>
+                    {servesMarket !== 'international' ? "Required" : "Optional"}
+                  </span>
                 </div>
                 <input
                   type="text"
@@ -157,8 +178,40 @@ export default function Home({ onStartScan }: HomeProps) {
                     </button>
                   ))}
                 </div>
+              </div>
 
+              {/* Step 5 - Target Client (required if international) */}
+              <div className="scan-step" style={{ marginTop: '14px' }}>
+                <div className="scan-step-label">
+                  Target client / audience
+                  <span className={servesMarket === 'international' ? "scan-step-required" : "scan-step-optional"}>
+                    {servesMarket === 'international' ? "Required" : "Optional"}
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  className="description-input"
+                  placeholder="e.g. startup founders, ecommerce owners, local consumers"
+                  value={targetClient}
+                  onChange={(e) => setTargetClient(e.target.value)}
+                  aria-label="Target client audience"
+                />
+              </div>
 
+              {/* Step 6 - Seed Known Competitors (Optional) */}
+              <div className="scan-step" style={{ marginTop: '14px' }}>
+                <div className="scan-step-label">
+                  Known direct competitors
+                  <span className="scan-step-optional">Optional - improves comparative analysis</span>
+                </div>
+                <input
+                  type="text"
+                  className="description-input"
+                  placeholder="e.g. apexadvisors.com, summitcpas.com"
+                  value={knownCompetitors}
+                  onChange={(e) => setKnownCompetitors(e.target.value)}
+                  aria-label="Known competitors list"
+                />
               </div>
 
               {/* Honeypot field - visually hidden */}
@@ -186,6 +239,19 @@ export default function Home({ onStartScan }: HomeProps) {
               </button>
             </form>
             {error && <p className="url-error-msg">{error}</p>}
+            <div style={{ marginTop: '18px', textAlign: 'center' }}>
+              <a 
+                href="/demo" 
+                style={{ fontSize: '14.5px', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+                Or see a live example first →
+              </a>
+            </div>
           </div>
 
           <div className="hero-trust-bar">

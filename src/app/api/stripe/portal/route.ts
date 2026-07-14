@@ -25,14 +25,48 @@ export async function POST(request: Request) {
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (!sub?.stripe_customer_id) {
-      return NextResponse.json({ error: 'No subscription found' }, { status: 404 })
+    let customerId = sub?.stripe_customer_id
+
+    // Fallback: If no customer ID exists in local DB, search Stripe by email or create one
+    if (!customerId && user.email) {
+      try {
+        const stripe = getStripe()
+        const existingCustomers = await stripe.customers.list({
+          email: user.email,
+          limit: 1
+        })
+        
+        if (existingCustomers.data.length > 0) {
+          customerId = existingCustomers.data[0].id
+        } else {
+          const newCustomer = await stripe.customers.create({
+            email: user.email,
+            metadata: { user_id: user.id }
+          })
+          customerId = newCustomer.id
+        }
+
+        // Cache stripe_customer_id in Supabase subscriptions table
+        await supabase.from('subscriptions').upsert({
+          user_id: user.id,
+          stripe_customer_id: customerId,
+          status: 'active',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' })
+
+      } catch (err) {
+        console.error('Failed to create/resolve Stripe customer:', err)
+      }
+    }
+
+    if (!customerId) {
+      return NextResponse.json({ error: 'No subscription or customer found' }, { status: 404 })
     }
 
     const session = await getStripe().billingPortal.sessions.create({
-      customer: sub.stripe_customer_id,
+      customer: customerId,
       return_url: `${new URL(request.url).origin}/?view=dashboard`,
     })
 

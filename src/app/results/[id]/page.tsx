@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Results from '../../../views/Results';
 import type { ScanReport } from '../../../lib/scanEngine';
+import { createClient } from '../../../lib/supabase/client';
 
 export default function SharedResultsPage() {
   const params = useParams();
@@ -12,6 +13,57 @@ export default function SharedResultsPage() {
   const [report, setReport] = useState<ScanReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<{ email: string; isPro: boolean; subscriptionState: string; periodEnd: string | null } | null>(null);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const supabase = createClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('status, current_period_end, cancel_at_period_end')
+          .eq('user_id', authUser.id)
+          .maybeSingle();
+
+        let state = 'anonymous';
+        let isPro = false;
+
+        if (sub) {
+          const isPastEnd = sub.current_period_end ? new Date(sub.current_period_end) < new Date() : false;
+          if (sub.status === 'active' || sub.status === 'trialing') {
+            if (sub.cancel_at_period_end && !isPastEnd) {
+              state = 'pro_canceled_pending';
+              isPro = true;
+            } else if (sub.cancel_at_period_end && isPastEnd) {
+              state = 'pro_expired';
+              isPro = false;
+            } else {
+              state = 'pro_active';
+              isPro = true;
+            }
+          } else {
+            state = 'pro_expired';
+            isPro = false;
+          }
+        }
+
+        // DEV OVERRIDE
+        if (authUser.email === 'nikhilsiyer@gmail.com') {
+          state = 'pro_active';
+          isPro = true;
+        }
+
+        setUser({
+          email: authUser.email!,
+          isPro,
+          subscriptionState: state,
+          periodEnd: sub?.current_period_end || null
+        });
+      }
+    }
+    checkAuth();
+  }, []);
 
   useEffect(() => {
     // Force light theme on the HTML element for visibility matching
@@ -102,7 +154,7 @@ export default function SharedResultsPage() {
       </header>
 
       <div className="app-container">
-        <Results report={report} onRescan={handleRescan} onNavigateToPricing={() => window.location.href = '/?go=pricing'} />
+        <Results user={user} report={report} onRescan={handleRescan} onNavigateToPricing={() => window.location.href = '/?go=pricing'} />
       </div>
     </>
   );

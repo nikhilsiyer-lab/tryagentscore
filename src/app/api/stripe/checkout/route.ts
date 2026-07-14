@@ -15,18 +15,9 @@ function getStripe() {
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
-    // You can optionally pass the domain if it was sent in the request body
-    const body = await request.json().catch(() => ({}))
-    
-    // Create Stripe Checkout Session
-    const session = await getStripe().checkout.sessions.create({
+    const checkoutOptions: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
-      customer_email: user.email,
-      client_reference_id: user.id, // We'll use this in the webhook to link the subscription to the user
       line_items: [
         {
           price: process.env.STRIPE_PRICE_ID!,
@@ -34,9 +25,16 @@ export async function POST(request: Request) {
         },
       ],
       mode: 'subscription',
-      success_url: `${new URL(request.url).origin}/?view=dashboard&checkout=success`,
+      success_url: `${new URL(request.url).origin}/login?checkout=success`,
       cancel_url: `${new URL(request.url).origin}/?view=pricing`,
-    })
+    }
+
+    if (user) {
+      checkoutOptions.customer_email = user.email
+      checkoutOptions.client_reference_id = user.id
+    }
+
+    const session = await getStripe().checkout.sessions.create(checkoutOptions)
 
     if (!session.url) {
       throw new Error('Failed to create checkout session URL')

@@ -23,6 +23,13 @@ function getSupabase() {
   return supabaseInstance;
 }
 
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy-url.supabase.co',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy-anon-key'
+  );
+}
+
 export async function POST(request: Request) {
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')
@@ -49,13 +56,41 @@ export async function POST(request: Request) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         
-        // This is the user.id we passed in client_reference_id
-        const userId = session.client_reference_id
-        if (!userId) throw new Error('No client_reference_id in session')
+        let userId = session.client_reference_id
+        const customerEmail = session.customer_details?.email
+
+        const adminAuth = getSupabaseAdmin()
+
+        if (!userId && customerEmail) {
+          // Check if user exists
+          const { data: { users }, error: searchError } = await adminAuth.auth.admin.listUsers()
+          
+          let existingUser = null
+          if (!searchError && users) {
+            existingUser = users.find((u: any) => u.email === customerEmail)
+          }
+
+          if (existingUser) {
+            userId = existingUser.id
+          } else {
+            // Create user
+            const { data: newUser, error: createError } = await adminAuth.auth.admin.createUser({
+              email: customerEmail,
+              email_confirm: true,
+            })
+            if (!createError && newUser?.user) {
+              userId = newUser.user.id
+            }
+          }
+        }
+
+        if (!userId) {
+          throw new Error('No user id found and failed to create one from email')
+        }
 
         const subscription = await getStripe().subscriptions.retrieve(session.subscription as string)
 
-        await getSupabase().from('subscriptions').upsert({
+        await adminAuth.from('subscriptions').upsert({
           user_id: userId,
           stripe_subscription_id: subscription.id,
           stripe_customer_id: session.customer as string,
@@ -71,7 +106,8 @@ export async function POST(request: Request) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
 
-        await getSupabase().from('subscriptions').update({
+        const adminAuth = getSupabaseAdmin()
+        await adminAuth.from('subscriptions').update({
           status: subscription.status,
           current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
           updated_at: new Date().toISOString()

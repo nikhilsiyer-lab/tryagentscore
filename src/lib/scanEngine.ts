@@ -16,13 +16,15 @@ export interface CompetitorGap {
   appearances: number;
 }
 
+export type RecommendationType = 'prompt_coverage' | 'model_coverage' | 'competitor_context' | 'entity_clarity' | 'content_structure' | 'schema_markup' | 'authority_signals';
+
 export interface FixItem {
-  id: string;
+  id: RecommendationType;
   title: string;
-  description: string;
-  impact: 'Critical' | 'High' | 'Medium';
-  timeEstimate: string;
-  fixAction: 'llms' | 'robots' | 'schema' | 'link';
+  reason: string;
+  evidence: string;
+  impact: string;
+  actionLabel: string;
 }
 
 export interface Top10Result {

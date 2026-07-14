@@ -1,22 +1,19 @@
 import { useState } from 'react';
 import './Pricing.css';
-import WaitlistForm from '../components/WaitlistForm';
 
 interface PricingProps {
-  user: { email: string; isPro: boolean } | null;
+  user: { email: string; isPro: boolean; periodEnd?: string | null; subscriptionState?: string } | null;
+  isBillingView?: boolean;
   onBack: () => void;
   onUpgrade: () => void;
+  onNavigateToBilling?: () => void;
 }
 
-export default function Pricing({ user, onBack }: PricingProps) {
+export default function Pricing({ user, isBillingView, onBack, onNavigateToBilling }: PricingProps) {
   const [loading, setLoading] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const handleCheckout = async () => {
-    if (!user) {
-      window.location.href = '/login?redirect=pricing';
-      return;
-    }
-    
     setLoading(true);
     try {
       const res = await fetch('/api/stripe/checkout', {
@@ -54,73 +51,145 @@ export default function Pricing({ user, onBack }: PricingProps) {
     }
   };
 
-  return (
-    <div className="pricing-container animate-fade-in">
-      <div className="pricing-header">
-        <h1>Pro - Your AI Trust & Visibility Analyst</h1>
-        <p>See how your business appears in AI search and what to improve next. Cancel anytime.</p>
-      </div>
-      
-      <div className="pricing-grid">
-        {/* Free Plan Card */}
-        <div className="pricing-col">
-          <div className="col-header">
-            <h2>Free</h2>
-            <div className="price-title">
-              €0 <span className="price-period">/ check</span>
+  if (isBillingView && user?.isPro) {
+    return (
+      <div className="billing-page animate-fade-in">
+        <div className="billing-header">
+          <h1>Billing</h1>
+          <p>Manage your Pro plan and payment details.</p>
+        </div>
+
+        <div className="billing-card current-plan-card">
+          <div className="card-left">
+            <h2>Current plan</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <div className="plan-badge">Pro</div>
+              <span className="status-line active">Active</span>
             </div>
-            <div className="cancel-text">No account or credit card required</div>
+            <span className="secondary-line">Billing managed by Stripe</span>
           </div>
-          
-          <ul className="feature-list">
-            <li>One-time visibility check</li>
-            <li>Basic search pattern analysis</li>
-            <li>Instant recommendations preview</li>
-          </ul>
-          
-          <div className="col-footer">
-            <button onClick={onBack} className="btn-pricing btn-pricing-outline">
-              Check my score
+          <div className="card-right">
+            <button onClick={handlePortal} disabled={loading} className="btn btn-primary">
+              {loading ? 'Loading...' : 'Open billing management'}
             </button>
           </div>
         </div>
 
-        {/* Pro Plan Card */}
-        <div className="pricing-col growth-col">
-          <span className="popular-badge">Recommended</span>
-          <div className="col-header">
-            <h2>Pro - Early Access Price</h2>
-            <div className="price-title">
-              <span style={{ textDecoration: 'line-through', fontSize: '0.6em', color: '#94a3b8', marginRight: '8px' }}>€19</span>
-              €14.99 <span className="price-period">/ month</span>
-            </div>
-            <div className="cancel-text">Founding member pricing. Locked in for as long as you stay subscribed.</div>
+        <div className="billing-card details-card">
+          <div className="detail-row">
+            <span className="detail-label">Next renewal date</span>
+            <span className="detail-value">
+              {user.periodEnd ? new Date(user.periodEnd).toLocaleDateString() : 'Managed in Stripe'}
+            </span>
           </div>
-          
+          <div className="detail-row">
+            <span className="detail-label">Billing email</span>
+            <span className="detail-value">{user.email || '—'}</span>
+          </div>
+          <div className="detail-row">
+            <span className="detail-label">Payment method</span>
+            <span className="detail-value">—</span>
+          </div>
+          <div className="detail-row">
+            <span className="detail-label">Subscription status</span>
+            <span className="detail-value" style={{ textTransform: 'capitalize' }}>
+              {user.subscriptionState ? user.subscriptionState.replace('pro_', '') : 'Active'}
+            </span>
+          </div>
+        </div>
+        
+        <div className="billing-note">
+          Subscription changes and cancellations are handled securely in Stripe.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pricing-page animate-fade-in">
+      <div className="pricing-header">
+        <h1>Pricing</h1>
+        <p>Choose the plan that fits how you monitor AI visibility.</p>
+      </div>
+
+      <div className="pricing-grid">
+        {/* Free Plan Card */}
+        <div className="pricing-card">
+          <h2>Free</h2>
+          <div className="price-line">
+            <span className="price">€0</span> <span className="period">/ check</span>
+          </div>
+          <p className="plan-desc">Basic search pattern analysis.</p>
           <ul className="feature-list">
-            <li>Monthly visibility report</li>
-            <li>Multi-sample scoring across AI tools - Gemini, ChatGPT, Claude and Perplexity</li>
-            <li>Competitor comparisons</li>
-            <li>Top 10 list check</li>
-            <li>AI-drafted fixes ready to use</li>
+            <li><span style={{color: '#10B981', marginRight: '8px'}}>✓</span>One-time visibility check</li>
+            <li><span style={{color: '#10B981', marginRight: '8px'}}>✓</span>Basic search pattern analysis</li>
+            <li><span style={{color: '#10B981', marginRight: '8px'}}>✓</span>Instant recommendations preview</li>
           </ul>
-          
-          <div className="col-footer">
-            {user?.isPro ? (
-              <button 
-                onClick={handlePortal} 
-                disabled={loading}
-                className="btn-pricing btn-pricing-primary"
-              >
-                {loading ? 'Loading...' : 'Manage Subscription'}
-              </button>
-            ) : (
-              <WaitlistForm />
-            )}
+          <button onClick={onBack} className="btn btn-secondary">Start free</button>
+        </div>
+
+        {/* Pro Plan Card */}
+        <div className="pricing-card featured-card">
+          <div className="featured-badge">Most popular</div>
+          <h2>Pro</h2>
+          <div className="price-line">
+            <span className="price">€14.99</span> <span className="period">/ month</span>
           </div>
+          <p className="plan-desc">Advanced tracking and AI-drafted fixes.</p>
+          <ul className="feature-list">
+            <li><span style={{color: '#10B981', marginRight: '8px'}}>✓</span>Everything in Free, plus:</li>
+            <li><span style={{color: '#10B981', marginRight: '8px'}}>✓</span>50 real-time scans per month</li>
+            <li><span style={{color: '#10B981', marginRight: '8px'}}>✓</span>Monthly visibility report</li>
+            <li><span style={{color: '#10B981', marginRight: '8px'}}>✓</span>Multi-sample scoring (Gemini, ChatGPT, Perplexity)</li>
+            <li><span style={{color: '#10B981', marginRight: '8px'}}>✓</span>Competitor comparisons & Top 10 list</li>
+            <li><span style={{color: '#10B981', marginRight: '8px'}}>✓</span>AI-drafted fixes ready to use</li>
+          </ul>
+          <button 
+            onClick={user?.isPro ? onNavigateToBilling : handleCheckout} 
+            disabled={loading} 
+            className="btn btn-primary"
+          >
+            {loading ? 'Loading...' : (user?.isPro ? 'Current plan' : 'Upgrade to Pro')}
+          </button>
+          
+          {user?.isPro && (
+            <div style={{ marginTop: '16px', textAlign: 'center' }}>
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); onNavigateToBilling?.(); }}
+                style={{ fontSize: '14px', color: '#64748B', textDecoration: 'underline' }}
+              >
+                Manage billing
+              </a>
+            </div>
+          )}
         </div>
       </div>
 
+      <div className="trust-strip">
+        <span>🔒 Secure payment via Stripe</span>
+        <span>⚡ Cancel anytime</span>
+        <span>✨ No hidden fees</span>
+      </div>
+
+      <div className="faq-section">
+        <h3>Frequently Asked Questions</h3>
+        
+        {[
+          { q: "What happens when I upgrade?", a: "You instantly unlock historical tracking and deep analysis." },
+          { q: "Can I cancel anytime?", a: "Yes, you can cancel your subscription at any time through the billing portal." },
+          { q: "Do I keep my scan history?", a: "Yes, your scan history is retained as long as your account is active." },
+          { q: "How does billing work?", a: "You are billed monthly via Stripe. There are no hidden fees or contracts." }
+        ].map((faq, i) => (
+          <div key={i} className={`faq-item ${openFaq === i ? 'open' : ''}`}>
+            <button className="faq-q" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
+              {faq.q}
+              <span className="faq-icon">{openFaq === i ? '−' : '+'}</span>
+            </button>
+            {openFaq === i && <div className="faq-a">{faq.a}</div>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
