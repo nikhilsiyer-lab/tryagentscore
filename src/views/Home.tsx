@@ -239,7 +239,7 @@ export default function Home({ user, initialData, onStartScan }: HomeProps) {
               </button>
             </form>
             {error && <p className="url-error-msg">{error}</p>}
-            {process.env.NEXT_PUBLIC_BETA_MODE !== 'true' && (
+            {process.env.NEXT_PUBLIC_ENABLE_FEATURES !== 'true' && (
               <div style={{ marginTop: '18px', textAlign: 'center' }}>
                 <a 
                   href="/demo" 

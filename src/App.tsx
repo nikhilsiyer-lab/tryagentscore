@@ -203,7 +203,7 @@ export default function App() {
           <div className="topbar-right">
             {!user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                {process.env.NEXT_PUBLIC_BETA_MODE !== 'true' && (
+                {process.env.NEXT_PUBLIC_ENABLE_FEATURES !== 'true' && (
                   <>
                     <a href="#" onClick={(e) => { e.preventDefault(); setView('pricing'); }} className={view === 'pricing' ? 'active' : ''} style={{ textDecoration: 'none', color: '#475569', fontSize: '14px', fontWeight: 500 }}>Pricing</a>
                     <a href="/login" style={{ textDecoration: 'none', color: '#475569', fontSize: '14px', fontWeight: 500 }}>Log in</a>
@@ -293,7 +293,7 @@ export default function App() {
         flexWrap: 'wrap'
       }}>
         <button onClick={() => setView('about')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>About</button>
-        {process.env.NEXT_PUBLIC_BETA_MODE !== 'true' && (
+        {process.env.NEXT_PUBLIC_ENABLE_FEATURES !== 'true' && (
           <button onClick={() => setView('pricing')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>Pricing</button>
         )}
         <button onClick={() => setView('privacy')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>Privacy</button>
