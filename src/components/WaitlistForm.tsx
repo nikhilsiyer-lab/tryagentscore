@@ -1,14 +1,9 @@
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+import { createClient } from '../lib/supabase/client';
 
 // We only initialize if keys are present to avoid crash on build
-const supabase = supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')
-  ? createClient(supabaseUrl, supabaseAnonKey) 
-  : null;
+const hasKeys = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = hasKeys ? createClient() : null;
 
 export default function WaitlistForm() {
   const [email, setEmail] = useState('');

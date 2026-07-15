@@ -1,6 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Automatically detect and correct swapped Supabase environment variables on Vercel
+const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+if (envUrl.startsWith('ey') && envKey.startsWith('http')) {
+  process.env.NEXT_PUBLIC_SUPABASE_URL = envKey;
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = envUrl;
+}
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,

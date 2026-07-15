@@ -1,4 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+// Automatically detect and correct swapped Supabase environment variables on Vercel
+const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+if (envUrl.startsWith('ey') && envKey.startsWith('http')) {
+  process.env.NEXT_PUBLIC_SUPABASE_URL = envKey;
+  process.env.SUPABASE_URL = envKey;
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = envUrl;
+  process.env.SUPABASE_ANON_KEY = envUrl;
+}
+
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Groq } from 'groq-sdk';
 import { getCurrentUser } from '../../../lib/auth';
