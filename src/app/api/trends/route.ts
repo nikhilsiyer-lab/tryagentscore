@@ -35,20 +35,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(mockScans);
     }
 
-    const user = await getCurrentUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const enableFeatures = process.env.NEXT_PUBLIC_ENABLE_FEATURES === 'true'
+
+    let user = null
+    if (!enableFeatures) {
+      user = await getCurrentUser()
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
     }
 
     const supabase = await createClient()
 
-    // Fetch trend data for this domain and user
-    const { data: scans, error } = await supabase
+    // Fetch trend data. If in free features mode, fetch all scans for this domain.
+    // Otherwise, filter strictly by the logged-in user.
+    let query = supabase
       .from('scans')
       .select('id, composite_score, citation_rate, created_at')
-      .eq('user_id', user.id)
       .eq('domain', domain)
-      .order('created_at', { ascending: true }) // Ascending for chronological order on charts
+
+    if (!enableFeatures && user) {
+      query = query.eq('user_id', user.id)
+    }
+
+    const { data: scans, error } = await query.order('created_at', { ascending: true })
 
     if (error) {
       console.error('Error fetching trend scans:', error)
