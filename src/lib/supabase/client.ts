@@ -9,8 +9,17 @@ if (envUrl.startsWith('ey') && envKey.startsWith('http')) {
 }
 
 export function createClient() {
+  let url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+  if (url.startsWith('ey') && key.startsWith('http')) {
+    const temp = url;
+    url = key;
+    key = temp;
+  }
+
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    url,
+    key
   )
 }

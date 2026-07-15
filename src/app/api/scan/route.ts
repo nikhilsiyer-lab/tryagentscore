@@ -66,8 +66,15 @@ export async function GET(request: NextRequest) {
 
   const ip = request.headers.get('x-forwarded-for') || request.ip || '127.0.0.1';
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  let supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+  if (supabaseUrl && supabaseKey && supabaseUrl.startsWith('ey') && supabaseKey.startsWith('http')) {
+    const temp = supabaseUrl;
+    supabaseUrl = supabaseKey;
+    supabaseKey = temp;
+  }
+
   let cachedScan: any = null;
 
   try {

@@ -11,13 +11,20 @@ if (envUrl.startsWith('ey') && envKey.startsWith('http')) {
   process.env.SUPABASE_ANON_KEY = envUrl;
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   try {
     const params = await props.params;
     const id = params.id;
+
+    let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    let supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+    if (supabaseUrl && supabaseKey && supabaseUrl.startsWith('ey') && supabaseKey.startsWith('http')) {
+      const temp = supabaseUrl;
+      supabaseUrl = supabaseKey;
+      supabaseKey = temp;
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { data, error } = await supabase.from('scans').select('technical_checks').eq('id', id).single();
     if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });

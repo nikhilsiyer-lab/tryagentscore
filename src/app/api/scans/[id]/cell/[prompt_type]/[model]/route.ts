@@ -46,8 +46,14 @@ export async function GET(
       return NextResponse.json(cell);
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+    let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+    let supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+
+    if (supabaseUrl && supabaseKey && supabaseUrl.startsWith('ey') && supabaseKey.startsWith('http')) {
+      const temp = supabaseUrl;
+      supabaseUrl = supabaseKey;
+      supabaseKey = temp;
+    }
 
     if (!supabaseUrl || !supabaseKey) {
       return NextResponse.json({ error: 'Supabase configuration missing' }, { status: 500 });
