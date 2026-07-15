@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         .select('*', { count: 'exact', head: true })
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
-      if (!isPro && globalDailyCount && globalDailyCount >= 50) {
+      if (!isPro && globalDailyCount && globalDailyCount >= 75) {
         return sendStreamError("We're experiencing high demand right now and have reached today's scan limit. Please check back in a few hours — we reset daily. Thank you for your patience!");
       }
 
