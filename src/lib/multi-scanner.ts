@@ -472,7 +472,7 @@ Return ONLY a JSON object with a "businesses" array of strings.`;
         const { createClient } = await import('@supabase/supabase-js');
         const supabase = createClient(supabaseUrl, supabaseKey);
         
-        const { data, error } = await supabase.from('scans').insert({
+        let insertResult = await supabase.from('scans').insert({
           url: targetUrl,
           domain,
           user_id: user?.id || null,
@@ -486,8 +486,27 @@ Return ONLY a JSON object with a "businesses" array of strings.`;
           competitors: competitors
         }).select('id').single();
 
-        if (data) {
-          scanId = data.id;
+        if (insertResult.error && insertResult.error.code === '23503') {
+          console.warn('Foreign key violation for user_id on scans insert, retrying anonymously...');
+          insertResult = await supabase.from('scans').insert({
+            url: targetUrl,
+            domain,
+            user_id: null,
+            anonymous_session_id: ip,
+            composite_score: compositeScore,
+            citation_rate: Math.round(citationRate * 100),
+            cited_count: Math.round(avgCitedCount),
+            total_count: allQueries.length,
+            technical_checks: technicalChecks,
+            top_fixes: topFixes,
+            competitors: competitors
+          }).select('id').single();
+        }
+
+        if (insertResult.error) {
+          console.error('Supabase scans insert error:', insertResult.error);
+        } else if (insertResult.data) {
+          scanId = insertResult.data.id;
           if (competitors.length > 0) {
             const snapshots = competitors.map(c => ({
               scan_id: scanId,
