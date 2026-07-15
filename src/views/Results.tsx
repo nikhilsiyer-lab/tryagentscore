@@ -569,6 +569,23 @@ export default function Results({ user, report, description, onRescan, onNavigat
   return (
     <div className="results-page animate-fade-in">
       
+      {/* Branded Print Header (only visible when exporting/printing) */}
+      <div className="print-only-header">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #6366f1', paddingBottom: '16px', marginBottom: '24px' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: '#6366f1', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              ✦ tryagentscore
+            </h1>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>AI Search Engine Optimization & Audit Report</p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>{report.domain}</div>
+            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+              Scan Date: {new Date(report.created_at || Date.now()).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+            </div>
+          </div>
+        </div>
+      </div>
       {/* Free User Top Banner */}
       {isFreeUser && (
         <div style={{ 

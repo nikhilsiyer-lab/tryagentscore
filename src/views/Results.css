@@ -487,3 +487,63 @@
   outline: none;
   box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--primary);
 }
+
+/* Branded Print Styles */
+.print-only-header {
+  display: none !important;
+}
+
+@media print {
+  .print-only-header {
+    display: block !important;
+  }
+
+  /* Hide app navigation header, footer, options, action buttons, and paywall overlays */
+  header, footer, nav, 
+  .free-banner, 
+  .persistent-url-bar, 
+  .results-header-actions, 
+  .overview-header .btn,
+  .action-buttons,
+  button, 
+  .modal-overlay,
+  .results-card div[style*="rgba(15, 23, 42, 0.45)"] {
+    display: none !important;
+  }
+
+  body, .results-page {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .results-page {
+    gap: 16px !important;
+  }
+
+  .results-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 20px !important;
+    padding: 20px !important;
+  }
+
+  /* Improve typography contrast for print outputs */
+  .stat-value, h2, h3, h4 {
+    color: #0f172a !important;
+  }
+
+  p, span, td, th {
+    color: #334155 !important;
+  }
+
+  /* Keep table borders visible when printing */
+  table, th, td {
+    border-color: #cbd5e1 !important;
+  }
+}
