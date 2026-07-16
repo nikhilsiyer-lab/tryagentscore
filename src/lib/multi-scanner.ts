@@ -197,6 +197,23 @@ Return ONLY a JSON object with a "businesses" array of strings.`;
         const isCited = (text: string) => {
           if (!text) return false;
           const t = text.toLowerCase();
+          const NEGATIVE_PATTERNS = [
+            'no widely recognized',
+            'no record of',
+            'cannot identify',
+            'not find any information',
+            'no information available',
+            'does not seem to exist',
+            'does not exist',
+            'unable to find',
+            'is not a recognized',
+            'not a known tool',
+            'no widely known',
+            'no such tool'
+          ];
+          if (NEGATIVE_PATTERNS.some(pat => t.includes(pat))) {
+            return false;
+          }
           if (profile.businessName && t.includes(profile.businessName.toLowerCase())) return true;
           
           const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, '').toLowerCase();

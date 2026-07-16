@@ -503,10 +503,25 @@ export async function executeScanLogic(params: ScanParams) {
             // without including its URL in the grounding sources
             const responseText: string = candidate?.content?.parts?.map((p: any) => p.text).join('') || '';
             const textLower = responseText.toLowerCase();
+            const NEGATIVE_PATTERNS = [
+              'no widely recognized',
+              'no record of',
+              'cannot identify',
+              'not find any information',
+              'no information available',
+              'does not seem to exist',
+              'does not exist',
+              'unable to find',
+              'is not a recognized',
+              'not a known tool',
+              'no widely known',
+              'no such tool'
+            ];
+            const hasNegativeContext = NEGATIVE_PATTERNS.some(pat => textLower.includes(pat));
             const domainRoot = domain.replace(/\.[^.]+$/, '').toLowerCase(); // "vandk" from "vandk.in"
             const businessNameLower = profile.businessName?.toLowerCase() || '';
-            const textCited = textLower.includes(domainRoot) || 
-                              (businessNameLower.length > 2 && textLower.includes(businessNameLower));
+            const textCited = ((textLower.includes(domainRoot) || 
+                              (businessNameLower.length > 2 && textLower.includes(businessNameLower)))) && !hasNegativeContext;
             
             // Cited if found in EITHER grounding chunks or text body
             cited = groundingCited || textCited;
