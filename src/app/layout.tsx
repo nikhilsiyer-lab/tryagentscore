@@ -40,6 +40,70 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="light-theme">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "LocalBusiness",
+              "name": "tryagentscore",
+              "description": "AI visibility and citation tool in Berlin",
+              "url": "https://tryagentscore.com",
+              "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Berlin"
+              },
+              "hasOfferCatalog": {
+                "@type": "OfferCatalog",
+                "name": "Services",
+                "itemListElement": [
+                  {
+                    "@type": "Offer",
+                    "position": 1,
+                    "itemOffered": {
+                      "@type": "Service",
+                      "name": "AI visibility score"
+                    }
+                  },
+                  {
+                    "@type": "Offer",
+                    "position": 2,
+                    "itemOffered": {
+                      "@type": "Service",
+                      "name": "AI citation analysis"
+                    }
+                  },
+                  {
+                    "@type": "Offer",
+                    "position": 3,
+                    "itemOffered": {
+                      "@type": "Service",
+                      "name": "ChatGPT visibility analysis"
+                    }
+                  },
+                  {
+                    "@type": "Offer",
+                    "position": 4,
+                    "itemOffered": {
+                      "@type": "Service",
+                      "name": "Gemini visibility analysis"
+                    }
+                  },
+                  {
+                    "@type": "Offer",
+                    "position": 5,
+                    "itemOffered": {
+                      "@type": "Service",
+                      "name": "Perplexity visibility analysis"
+                    }
+                  }
+                ]
+              }
+            })
+          }}
+        />
+      </head>
       <body style={{ margin: 0, padding: 0 }}>
         {children}
         <Analytics />
