@@ -1160,8 +1160,8 @@ export default function Results({ user, report, description, onRescan, onNavigat
                     } else if (title.includes('title') || title.includes('description') || desc.includes('meta')) {
                       draftType = 'meta';
                     } else {
-                      // Generic default fallback (no action draft)
-                      draftType = null;
+                      // Generic default fallback (instructions only)
+                      draftType = 'manual';
                     }
                   }
                   
@@ -1220,6 +1220,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
                               profile={profile}
                               domain={report.domain}
                               detected={detected}
+                              description={fix.reason || fix.description}
                             />
                           )}
                         </div>

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import './ActionDraft.css';
 
-export type DraftType = 'llms' | 'schema' | 'robots' | 'meta' | 'faq';
+export type DraftType = 'llms' | 'schema' | 'robots' | 'meta' | 'faq' | 'manual';
 type DraftStatus = 'idle' | 'loading' | 'ready' | 'done';
 
 export interface BusinessProfile {
@@ -20,6 +20,7 @@ interface ActionDraftProps {
   profile: BusinessProfile;
   domain: string;
   detected?: boolean;
+  description?: string; // Add description prop to display manual instructions
 }
 
 /* ─── Card metadata ─── */
@@ -66,6 +67,13 @@ const CARD_META: Record<DraftType, {
     benefit: 'Q&A format is one of the most frequently cited content types in AI search.',
     effort: '30 min · High visibility',
     generateLabel: 'Generate FAQ draft',
+  },
+  manual: {
+    icon: '⚙️',
+    title: 'Manual optimization',
+    benefit: 'Action required. Optimize technical/UX parameters or perform citation outreach manual tasks.',
+    effort: '15 min · High importance',
+    generateLabel: 'View manual steps',
   },
 };
 
@@ -162,7 +170,7 @@ function buildFaqJsonLd(faqs: Array<{ question: string; answer: string }>): stri
 }
 
 /* ─── Main component ─── */
-export default function ActionDraft({ type, profile, domain, detected }: ActionDraftProps) {
+export default function ActionDraft({ type, profile, domain, detected, description }: ActionDraftProps) {
   const [status, setStatus] = useState<DraftStatus>('idle');
   const [draftText, setDraftText] = useState('');
   const [metaTitle, setMetaTitle] = useState('');
@@ -257,6 +265,8 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
         const data = await res.json();
         setFaqs(data.faqs || []);
         setDraftText(buildFaqJsonLd(data.faqs || []));
+        setStatus('ready');
+      } else if (type === 'manual') {
         setStatus('ready');
       }
     } catch (e) {
@@ -467,7 +477,7 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
       )}
 
       {/* Body when ready — all other types (single textarea) */}
-      {status === 'ready' && type !== 'meta' && type !== 'faq' && (
+      {status === 'ready' && type !== 'meta' && type !== 'faq' && type !== 'manual' && (
         <div className="draft-card-body">
           <textarea
             className="draft-textarea"
@@ -537,6 +547,29 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Body when ready — manual type (instructions) */}
+      {status === 'ready' && type === 'manual' && (
+        <div className="draft-card-body">
+          <div style={{ padding: '16px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '12px', color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.6' }}>
+            <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
+              How to implement:
+            </p>
+            <p style={{ margin: 0 }}>
+              {description || 'Refer to the main description above to guide your implementation steps on your website.'}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+            <button 
+              className="draft-done-btn mark-done-btn" 
+              onClick={() => handleMarkDone()}
+              style={{ flex: 1 }}
+            >
+              Mark as done ✓
+            </button>
           </div>
         </div>
       )}
