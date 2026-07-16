@@ -94,7 +94,11 @@ export default function SharedResultsPage() {
   }, [id]);
 
   const handleRescan = () => {
-    window.location.href = '/';
+    if (report?.domain) {
+      window.location.href = `/?url=${encodeURIComponent(report.domain)}`;
+    } else {
+      window.location.href = '/';
+    }
   };
 
   if (loading) {

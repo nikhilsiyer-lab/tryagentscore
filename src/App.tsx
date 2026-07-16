@@ -136,12 +136,16 @@ export default function App() {
   };
 
   const handleRescan = () => {
-    const cleanUrl = `${window.location.origin}${window.location.pathname}`;
-    window.history.pushState({ path: cleanUrl }, '', cleanUrl);
-    
-    setTargetUrl('');
-    setReport(null);
-    setView('home');
+    if (report?.domain) {
+      setTargetUrl(report.domain);
+      setView('scanning');
+    } else {
+      const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+      window.history.pushState({ path: cleanUrl }, '', cleanUrl);
+      setTargetUrl('');
+      setReport(null);
+      setView('home');
+    }
   };
 
   const handleUpgradeSimulate = () => {
