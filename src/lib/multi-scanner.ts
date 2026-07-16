@@ -209,7 +209,12 @@ Return ONLY a JSON object with a "businesses" array of strings.`;
             'is not a recognized',
             'not a known tool',
             'no widely known',
-            'no such tool'
+            'no such tool',
+            'referred to as',
+            'might be referred to',
+            'referred to',
+            'did you mean',
+            'misspelling of'
           ];
           if (NEGATIVE_PATTERNS.some(pat => t.includes(pat))) {
             return false;

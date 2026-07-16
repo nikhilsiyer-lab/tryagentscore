@@ -515,7 +515,12 @@ export async function executeScanLogic(params: ScanParams) {
               'is not a recognized',
               'not a known tool',
               'no widely known',
-              'no such tool'
+              'no such tool',
+              'referred to as',
+              'might be referred to',
+              'referred to',
+              'did you mean',
+              'misspelling of'
             ];
             const hasNegativeContext = NEGATIVE_PATTERNS.some(pat => textLower.includes(pat));
             const domainRoot = domain.replace(/\.[^.]+$/, '').toLowerCase(); // "vandk" from "vandk.in"
