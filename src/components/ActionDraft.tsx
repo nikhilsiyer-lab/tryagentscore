@@ -427,14 +427,16 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
           <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button 
-                className="draft-done-btn" 
+                className="draft-done-btn verify-btn" 
                 onClick={verifyFix} 
                 disabled={verifying}
-                style={{ flex: 1, backgroundColor: 'var(--primary)', color: 'white' }}
               >
                 {verifying ? 'Verifying live fix...' : 'Verify Live Fix 🔍'}
               </button>
-              <button className="draft-done-btn" onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain }); setStatus('done'); }} style={{ flex: 1, backgroundColor: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+              <button 
+                className="draft-done-btn mark-done-btn" 
+                onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain }); setStatus('done'); }}
+              >
                 Mark as done ✓
               </button>
             </div>
