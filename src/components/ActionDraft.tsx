@@ -308,7 +308,9 @@ export default function ActionDraft({ type, profile, domain, detected, descripti
           <span className="draft-detected-badge">Issue detected</span>
         )}
         {status === 'done' && (
-          <span className="draft-done-badge">✓ Ready to implement</span>
+          <span className="draft-done-badge">
+            {type === 'manual' ? '✓ Completed' : '✓ Ready to implement'}
+          </span>
         )}
       </div>
 
@@ -574,14 +576,15 @@ export default function ActionDraft({ type, profile, domain, detected, descripti
         </div>
       )}
 
-      {/* Done state */}
       {status === 'done' && (
         <div className="draft-card-body">
           <p className="draft-done-msg">
-            This draft is ready. Copy it and implement it on your site, then re-scan to see if your citation score improves.
+            {type === 'manual'
+              ? 'This optimization has been marked as complete. Re-scan your site to update your SEO footprint.'
+              : 'This draft is ready. Copy it and implement it on your site, then re-scan to see if your citation score improves.'}
           </p>
           <button className="draft-reset-btn" onClick={() => setStatus('ready')}>
-            View draft again
+            {type === 'manual' ? 'View instructions again' : 'View draft again'}
           </button>
         </div>
       )}
