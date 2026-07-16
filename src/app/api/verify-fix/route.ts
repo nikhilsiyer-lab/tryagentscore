@@ -9,12 +9,22 @@ export async function POST(req: NextRequest) {
 
     const cleanDomain = domain.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
     
+    // Check if we are running locally to test things against localhost
+    const host = req.headers.get('host') || '';
+    const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
+    
+    const getTargetUrl = (path: string = '') => {
+      if (isLocalhost && (cleanDomain.includes('tryagentscore.com') || cleanDomain.includes('localhost'))) {
+        return `http://${host}${path}`;
+      }
+      return `https://${cleanDomain}${path}`;
+    };
     // Simulate or perform active checks
     if (fixType === 'llms') {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
-        const res = await fetch(`https://${cleanDomain}/llms.txt`, { signal: controller.signal });
+        const res = await fetch(getTargetUrl('/llms.txt'), { signal: controller.signal });
         clearTimeout(timeoutId);
         
         if (res.status === 200) {
@@ -30,7 +40,7 @@ export async function POST(req: NextRequest) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
-        const res = await fetch(`https://${cleanDomain}/robots.txt`, { signal: controller.signal });
+        const res = await fetch(getTargetUrl('/robots.txt'), { signal: controller.signal });
         clearTimeout(timeoutId);
         
         if (res.status === 200) {
@@ -49,7 +59,7 @@ export async function POST(req: NextRequest) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
-        const res = await fetch(`https://${cleanDomain}`, { signal: controller.signal });
+        const res = await fetch(getTargetUrl(), { signal: controller.signal });
         clearTimeout(timeoutId);
         
         if (res.status === 200) {
