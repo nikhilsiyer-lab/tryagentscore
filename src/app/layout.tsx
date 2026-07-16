@@ -4,8 +4,8 @@ import "../index.css";
 import "../App.css";
 
 export const metadata: Metadata = {
-  title: "tryagentscore - Is AI recommending your business?",
-  description: "Find out if ChatGPT, Gemini, and Perplexity are recommending your business. Get your AI visibility score in 30 seconds - free, no sign-up.",
+  title: "Global AI Visibility Score | tryagentscore",
+  description: "Get expert insights with AI Visibility Score by tryagentscore, a pioneering SaaS solution. Analyze AI recommendations and unlock global growth potential.",
   icons: {
     icon: "/favicon.svg",
   },
