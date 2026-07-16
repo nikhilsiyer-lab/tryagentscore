@@ -213,6 +213,17 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
     }
   }
 
+  const handleMarkDone = (via?: string) => {
+    trackEvent('fix_marked_done', { fix_type: type, domain, via });
+    setStatus('done');
+    setTimeout(() => {
+      const el = document.getElementById(`action-draft-${type}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 50);
+  };
+
   async function generate() {
     trackEvent('fix_draft_generated', { fix_type: type, domain });
     setStatus('loading');
@@ -354,7 +365,7 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
               </button>
               <button 
                 className="draft-done-btn mark-done-btn" 
-                onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain }); setStatus('done'); }}
+                onClick={() => handleMarkDone()}
               >
                 Mark as done ✓
               </button>
@@ -386,7 +397,7 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
                       Fix confirmed live on domain! Run a new scan to update your footprint.
                     </p>
                     <button
-                      onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain, via: 'verification_banner' }); setStatus('done'); }}
+                      onClick={() => handleMarkDone('verification_banner')}
                       style={{ marginTop: '10px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: 'var(--success)', color: 'white', cursor: 'pointer' }}
                     >
                       Mark as done ✓
@@ -485,7 +496,7 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
               </button>
               <button 
                 className="draft-done-btn mark-done-btn" 
-                onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain }); setStatus('done'); }}
+                onClick={() => handleMarkDone()}
               >
                 Mark as done ✓
               </button>
@@ -517,7 +528,7 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
                       Fix confirmed live on domain! Run a new scan to update your footprint.
                     </p>
                     <button
-                      onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain, via: 'verification_banner' }); setStatus('done'); }}
+                      onClick={() => handleMarkDone('verification_banner')}
                       style={{ marginTop: '10px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: 'var(--success)', color: 'white', cursor: 'pointer' }}
                     >
                       Mark as done ✓
