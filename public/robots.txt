@@ -1,0 +1,14 @@
+# Allow AI crawlers to read your site
+# Add these lines to your existing robots.txt file
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
