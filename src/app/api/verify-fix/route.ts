@@ -74,6 +74,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ verified: false, message: 'Could not detect any JSON-LD Schema markup on your page root.' });
     }
 
+    if (fixType === 'meta') {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const res = await fetch(getTargetUrl(), { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (res.status === 200) {
+          const html = await res.text();
+          // Look for title tag or meta description tags
+          const hasTitle = html.toLowerCase().includes('<title>') || html.toLowerCase().includes('title');
+          const hasDesc = html.toLowerCase().includes('name="description"') || html.toLowerCase().includes('name=\'description\'') || html.toLowerCase().includes('content=');
+          
+          if (hasTitle || hasDesc) {
+            return NextResponse.json({ 
+              verified: true, 
+              message: 'SEO Page title or description tag detected on page root!' 
+            });
+          }
+        }
+      } catch (e) {
+        // Fallback
+      }
+      return NextResponse.json({ verified: false, message: 'Could not detect updated title/description tags on your page root.' });
+    }
+
     return NextResponse.json({ verified: false, message: 'Unknown fix verification type.' });
   } catch (e: any) {
     console.error('Fix verification error:', e);

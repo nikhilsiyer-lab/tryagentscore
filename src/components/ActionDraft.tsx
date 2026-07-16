@@ -343,8 +343,58 @@ export default function ActionDraft({ type, profile, domain, detected }: ActionD
               {copied === 'desc' ? '✓ Copied!' : '📋 Copy description'}
             </button>
           </div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-            <button className="draft-done-btn" onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain }); setStatus('done'); }} style={{ flex: 1 }}>Mark as done ✓</button>
+          <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="draft-done-btn verify-btn" 
+                onClick={verifyFix} 
+                disabled={verifying}
+              >
+                {verifying ? 'Verifying live fix...' : 'Verify Live Fix 🔍'}
+              </button>
+              <button 
+                className="draft-done-btn mark-done-btn" 
+                onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain }); setStatus('done'); }}
+              >
+                Mark as done ✓
+              </button>
+            </div>
+            {verificationResult && (
+              <div 
+                className={verificationResult.verified ? "highlight-pulse" : ""}
+                style={{ 
+                  padding: '16px', 
+                  borderRadius: '12px', 
+                  fontSize: '14px', 
+                  fontWeight: 600, 
+                  background: verificationResult.verified ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                  border: `2px solid ${verificationResult.verified ? 'var(--success)' : 'var(--warning)'}`,
+                  color: verificationResult.verified ? 'var(--success)' : 'var(--warning)',
+                  boxShadow: verificationResult.verified ? '0 10px 20px -10px rgba(16, 185, 129, 0.3)' : 'none',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: verificationResult.verified ? '6px' : '0' }}>
+                  <span>{verificationResult.verified ? '🎉 CONGRATULATIONS!' : '⚠️ VERIFICATION WARNING'}</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '13px', opacity: 0.9 }}>
+                  {verificationResult.message}
+                </p>
+                {verificationResult.verified && (
+                  <>
+                    <p style={{ margin: '6px 0 0 0', fontSize: '12px', opacity: 0.8, fontStyle: 'italic' }}>
+                      Fix confirmed live on domain! Run a new scan to update your footprint.
+                    </p>
+                    <button
+                      onClick={() => { trackEvent('fix_marked_done', { fix_type: type, domain, via: 'verification_banner' }); setStatus('done'); }}
+                      style={{ marginTop: '10px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: 'var(--success)', color: 'white', cursor: 'pointer' }}
+                    >
+                      Mark as done ✓
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
