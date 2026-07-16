@@ -343,7 +343,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
             const data = await res.json();
             // Process grid scores for each scan to get line coordinates
             const formattedTrends = data.map((scan: any) => {
-              const dateLabel = new Date(scan.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+              const dateLabel = new Date(scan.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
               
               // Extract grid cells from scans
               const gridCheck = scan.technical_checks?.find((c: any) => c.id === '__grid_data');
@@ -837,7 +837,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={trends}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(tick) => tick.split(',')[0]} />
                       <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
                       <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-primary)' }} />
                       <Legend />
@@ -1535,7 +1535,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={trends}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} tickFormatter={(tick) => tick.split(',')[0]} />
                       <YAxis 
                         domain={[0, 100]} 
                         axisLine={false} 
