@@ -149,7 +149,7 @@ export default function SharedResultsPage() {
                 </linearGradient>
               </defs>
             </svg>
-            <span>tryagent<span style={{ color: 'var(--primary)' }}>score</span></span>
+            <span>Agent<span style={{ color: 'var(--primary)' }}>Score</span></span>
           </div>
           <nav style={{ display: 'flex', gap: '32px', alignItems: 'center', fontSize: '0.95rem', fontWeight: 500, color: '#475569' }}>
             {process.env.NEXT_PUBLIC_ENABLE_FEATURES !== 'true' && (

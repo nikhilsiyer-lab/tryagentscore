@@ -175,7 +175,7 @@ export default function DemoPage() {
                 </linearGradient>
               </defs>
             </svg>
-            <span>tryagent<span style={{ color: 'var(--primary)' }}>score</span></span>
+            <span>Agent<span style={{ color: 'var(--primary)' }}>Score</span></span>
             <span style={{ fontSize: '11px', background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: '12px', marginLeft: '8px', fontWeight: 600 }}>Sandbox</span>
           </div>
           <nav style={{ display: 'flex', gap: '32px', alignItems: 'center', fontSize: '0.95rem', fontWeight: 500, color: '#475569' }}>

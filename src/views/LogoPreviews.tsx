@@ -42,7 +42,7 @@ export default function LogoPreviews({ onBack }: { onBack: () => void }) {
           <h3 style={{ marginBottom: '24px', color: 'var(--text-secondary)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Option 2: Typographic Polish</h3>
           <div style={{ fontWeight: '800', fontFamily: 'var(--font-display)', fontSize: '1.6rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ width: '12px', height: '12px', background: 'var(--primary)', borderRadius: '50%' }}></span>
-            <span>tryagent<span style={{ color: 'var(--primary)' }}>score</span></span>
+            <span>Agent<span style={{ color: 'var(--primary)' }}>Score</span></span>
           </div>
         </div>
 
@@ -59,7 +59,7 @@ export default function LogoPreviews({ onBack }: { onBack: () => void }) {
                 </linearGradient>
               </defs>
             </svg>
-            <span>tryagent<span style={{ color: 'var(--primary)' }}>score</span></span>
+            <span>Agent<span style={{ color: 'var(--primary)' }}>Score</span></span>
           </div>
         </div>
 
@@ -73,7 +73,7 @@ export default function LogoPreviews({ onBack }: { onBack: () => void }) {
               </svg>
               <span style={{ position: 'absolute', width: '6px', height: '6px', background: 'var(--primary)', borderRadius: '50%', animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite' }}></span>
             </div>
-            <span>tryagent<span style={{ color: 'var(--primary)' }}>score</span></span>
+            <span>Agent<span style={{ color: 'var(--primary)' }}>Score</span></span>
           </div>
         </div>
 

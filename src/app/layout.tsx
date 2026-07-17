@@ -4,8 +4,8 @@ import "../index.css";
 import "../App.css";
 
 export const metadata: Metadata = {
-  title: "Global AI Visibility Score | tryagentscore",
-  description: "Get expert insights with AI Visibility Score by tryagentscore, a pioneering SaaS solution. Analyze AI recommendations and unlock global growth potential.",
+  title: "Global AI Visibility Score | AgentScore",
+  description: "Get expert insights with AI Visibility Score by AgentScore, a pioneering SaaS solution. Analyze AI recommendations and unlock global growth potential.",
   icons: {
     icon: "/favicon.svg",
   },
@@ -47,7 +47,7 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "LocalBusiness",
-              "name": "tryagentscore",
+              "name": "AgentScore",
               "description": "AI visibility and citation tool in Berlin",
               "url": "https://tryagentscore.com",
               "address": {

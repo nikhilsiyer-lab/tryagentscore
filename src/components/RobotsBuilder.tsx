@@ -32,7 +32,7 @@ export default function RobotsBuilder() {
   }, [bots]);
 
   const generateDirectives = () => {
-    let output = `# tryagentscore robots.txt Configuration Builder\n# Optimize visibility for AI crawlers\n\n`;
+    let output = `# AgentScore robots.txt Configuration Builder\n# Optimize visibility for AI crawlers\n\n`;
     bots.forEach(bot => {
       output += `# ${bot.name} - ${bot.description}\n`;
       output += `User-agent: ${bot.userAgent}\n`;

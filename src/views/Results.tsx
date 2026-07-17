@@ -574,7 +574,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #6366f1', paddingBottom: '16px', marginBottom: '24px' }}>
           <div>
             <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: '#6366f1', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              ✦ tryagentscore
+              ✦ AgentScore
             </h1>
             <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>AI Search Engine Optimization & Audit Report</p>
           </div>
@@ -1695,7 +1695,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <h3 style={{ margin: 0, fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-display)', color: '#ffffff', letterSpacing: '-0.02em' }}>
-                    Unlock TryAgentScore Pro
+                    Unlock AgentScore Pro
                   </h3>
                   <p style={{ margin: 0, fontSize: '14.5px', color: '#94a3b8', lineHeight: '1.6' }}>
                     Get instant access to deep analytics and automated optimization fixes.

@@ -64,7 +64,7 @@ export default function Login() {
     <div className="login-page">
       <div className="login-header">
         <a href="/" className="login-logo">
-          <span style={{ color: 'var(--primary)' }}>✦</span> tryagent<span style={{ color: 'var(--primary)' }}>score</span>
+          <span style={{ color: 'var(--primary)' }}>✦</span> Agent<span style={{ color: 'var(--primary)' }}>Score</span>
         </a>
       </div>
 

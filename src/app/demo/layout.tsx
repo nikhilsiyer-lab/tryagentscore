@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'tryagentscore - Demo Sandbox',
+  title: 'AgentScore - Demo Sandbox',
   robots: {
     index: false,
     follow: false,
