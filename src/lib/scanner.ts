@@ -218,9 +218,9 @@ export function checkTop10Citation(responseText: string, domain: string, busines
   const coMentioned = lines
     .map(l => l.replace(/^\d+[\.\)\-\s]+/, '').split(/[—:\-]/)[0].trim())
     .filter(name => {
-      const n = name.toLowerCase();
-      const isGovBody = n.includes('registrar of companies') || n === 'roc' || n.includes('gst') || n.includes('income tax');
-      return n.length > 2 && !n.includes(domainRoot) && !n.includes(nameNorm) && !isGovBody;
+      const n = name.toLowerCase().trim();
+      const isTaxOrGov = n.includes('registrar of companies') || n === 'roc' || n === 'gst' || n.includes('income tax') || n.includes('goods and services tax') || n.includes('goods & services tax') || n === 'tds' || n === 'vat' || n === 'pf';
+      return n.length > 2 && !n.includes(domainRoot) && !n.includes(nameNorm) && !isTaxOrGov;
     })
     .slice(0, 5);
 

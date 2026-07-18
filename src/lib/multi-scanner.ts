@@ -295,9 +295,29 @@ Return ONLY a JSON object with a "businesses" array of strings.`;
       // Ensure we don't list the user's own business, directories, or global conglomerates (unless target is global)
       const cleanComps = (mentions: string[]) => {
         const targetIsGlobal = (profile.businessMode === 'global') || isGlobalEnterprise(profile.businessName || cleanDomain);
+        
+        const isGenericTaxOrConcept = (c: string) => {
+          const lower = c.toLowerCase().trim();
+          const blacklist = [
+            'goods and services tax',
+            'goods & services tax',
+            'income tax',
+            'value added tax',
+            'professional tax',
+            'corporate tax',
+            'service tax',
+            'customs duty',
+            'provident fund',
+            'llp registration',
+            'company registration'
+          ];
+          return blacklist.some(term => lower === term || lower.startsWith(term) || lower.endsWith(term));
+        };
+
         return Array.from(new Set(mentions)).filter(c => {
           if (c.length < 4) return false;
           if (isDirectory(c)) return false;
+          if (isGenericTaxOrConcept(c)) return false;
           if (!targetIsGlobal && isGlobalEnterprise(c)) return false;
           
           // Fuzzy match against user's business
