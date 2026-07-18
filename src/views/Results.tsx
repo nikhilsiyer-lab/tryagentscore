@@ -1129,7 +1129,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
                   const style = gapLabels[fix.category] || gapLabels['distribution_gap'];
 
                   return (
-                    <div key={idx} className="recommendation-item" style={{ padding: '20px 0', borderBottom: idx < (isFreeUser ? 2 : topFixes.length) - 1 ? '1px solid var(--border-color)' : 'none' }}>
+                    <div key={idx} className="recommendation-item">
                       <div className="rec-header" style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
                         <span style={{ 
                           background: style.bg, 
