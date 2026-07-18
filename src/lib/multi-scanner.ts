@@ -155,6 +155,7 @@ export async function executeMultiLLMScanLogic(params: ScanParams) {
 
         const extractBusinessesWithGroq = async (text: string) => {
           if (!text || text.length < 10) return [];
+          let extracted: string[] = [];
           try {
             const prompt = `Extract all actual competing business names, companies, agencies, or firms mentioned in the following text. 
 
@@ -174,12 +175,41 @@ Return ONLY a JSON object with a "businesses" array of strings.`;
               messages: [{ role: 'user', content: prompt }],
               response_format: { type: 'json_object' }
             }), 10000, null);
-            if (!res) return [];
-            const data = JSON.parse(res.choices[0]?.message?.content || '{}');
-            return data.businesses || [];
+            if (res) {
+              const data = JSON.parse(res.choices[0]?.message?.content || '{}');
+              extracted = data.businesses || [];
+            }
           } catch (e) {
-            return [];
+            console.error('Groq competitor extraction failed, using regex fallback:', e);
           }
+
+          // Regex fallback if Groq call failed or returned empty results
+          if (extracted.length === 0) {
+            const boldRegex = /\*\*(.*?)\*\*/g;
+            let match;
+            const seen = new Set<string>();
+            const blacklist = [
+              'taxation', 'financial consulting', 'accounting', 'auditing', 'tax services', 
+              'chartered accountant', 'consultant', 'auditor', 'bangalore', 'india', 
+              'best ca firm', 'gst', 'income tax', 'vat', 'tds', 'registrar of companies', 'roc'
+            ];
+            
+            while ((match = boldRegex.exec(text)) !== null) {
+              const name = match[1].trim();
+              const lower = name.toLowerCase();
+              
+              const hasCapital = /[A-Z]/.test(name);
+              const isGeneric = blacklist.some(term => lower.includes(term)) || lower.length < 3;
+              const isOwnBrand = (profile.businessName && lower.includes(profile.businessName.toLowerCase())) || 
+                                 lower.includes(domain.replace(/\.[^.]+$/, '').toLowerCase());
+              
+              if (hasCapital && !isGeneric && !isOwnBrand && !seen.has(lower)) {
+                seen.add(lower);
+                extracted.push(name);
+              }
+            }
+          }
+          return extracted;
         };
 
         const [gptMentions, pxMentions, gmMentions] = (i < 3) ? await Promise.all([
