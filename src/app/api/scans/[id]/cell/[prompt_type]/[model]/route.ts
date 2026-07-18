@@ -72,7 +72,9 @@ export async function GET(
       verdict: cell.cited ? 'Appeared' : 'Not Appeared',
       reason_tag: cell.reason_tag,
       competitor_displaced: cell.competitor_displaced,
-      response_text: cell.response_text
+      response_text: cell.response_text,
+      query: cell.query || null,
+      web_sources: cell.web_sources || []
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

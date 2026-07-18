@@ -1012,16 +1012,26 @@ export default function Results({ user, report, description, onRescan, onNavigat
                     `}</style>
                   </div>
                 ) : cellData ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    
-                    {/* Collapsible Section 1: Verdict */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                    {/* Section 0: Exact prompt sent */}
+                    {cellData.query && (
+                      <div style={{ padding: '14px 16px', background: 'rgba(99, 102, 241, 0.05)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: '10px' }}>
+                        <span style={{ display: 'block', fontSize: '10px', color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.06em' }}>
+                          📤 Exact question sent to {selectedCell.model === 'chatgpt' ? 'ChatGPT' : selectedCell.model === 'gemini' ? 'Gemini' : 'Perplexity'}
+                        </span>
+                        <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-primary)', fontStyle: 'italic', lineHeight: '1.5', fontFamily: 'var(--font-sans)' }}>"{cellData.query}"</p>
+                      </div>
+                    )}
+
+                    {/* Section 1: Verdict */}
                     <div style={{ 
                       padding: '18px', 
                       background: cellData.verdict === 'Appeared' ? 'rgba(16, 185, 129, 0.05)' : cellData.competitor_displaced ? 'rgba(245, 158, 11, 0.05)' : 'var(--bg-card)', 
                       border: `1px solid ${cellData.verdict === 'Appeared' ? 'rgba(16, 185, 129, 0.2)' : cellData.competitor_displaced ? 'rgba(245, 158, 11, 0.2)' : 'var(--border-color)'}`, 
                       borderRadius: '12px' 
                     }}>
-                      <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>Verdict</span>
+                      <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>Result</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span className={`indicator-dot ${cellData.verdict === 'Appeared' ? 'cited' : 'not-cited'}`} style={{ width: '12px', height: '12px' }}></span>
                         <strong style={{ 
@@ -1030,75 +1040,95 @@ export default function Results({ user, report, description, onRescan, onNavigat
                           fontFamily: 'var(--font-sans)',
                           fontWeight: 700 
                         }}>
-                          {cellData.verdict === 'Appeared' ? '✓ Cited in AI Search' : cellData.competitor_displaced ? '⚠️ Competitor cited instead' : '✗ Missing from citations'}
+                          {cellData.verdict === 'Appeared' ? '✓ You were cited' : cellData.competitor_displaced ? `⚠️ ${cellData.competitor_displaced} was cited instead` : '✗ No one specific was cited'}
                         </strong>
                       </div>
-                      
-                      {cellData.verdict !== 'Appeared' && cellData.competitor_displaced && (
-                        <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(245, 158, 11, 0.08)', border: '1px dashed rgba(245, 158, 11, 0.3)', borderRadius: '8px', fontSize: '13.5px', color: 'var(--warning)', fontWeight: 600 }}>
-                          ⚠️ Displaced by competitor: <strong style={{ textDecoration: 'underline' }}>{cellData.competitor_displaced}</strong>
-                        </div>
-                      )}
                     </div>
 
-                    {/* Collapsible Section 2: Why this happened */}
-                    <div style={{ padding: '16px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
-                      <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>Why this happened</span>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-                        <span style={{ display: 'inline-block', padding: '4px 10px', background: cellData.verdict === 'Appeared' ? 'var(--success-bg)' : 'var(--warning-bg)', color: cellData.verdict === 'Appeared' ? 'var(--success)' : 'var(--warning)', border: `1px solid ${cellData.verdict === 'Appeared' ? 'var(--success-border)' : 'var(--warning-border)'}`, borderRadius: '6px', fontSize: '13px', fontWeight: 600 }}>
-                          {WHY_HAPPENED_LABELS[cellData.reason_tag as keyof typeof WHY_HAPPENED_LABELS] || 'Low citation signal'}
-                        </span>
-                        {cellData.verdict !== 'Appeared' && cellData.competitor_displaced && (
-                          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                            (Competitor <strong style={{ color: 'var(--text-primary)' }}>{cellData.competitor_displaced}</strong> took precedence)
-                          </span>
-                        )}
+                    {/* Section 2: AI Response with highlighted text */}
+                    <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div style={{ padding: '12px 16px', background: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>💬 AI response</span>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {cellData.competitor_displaced && (
+                            <span style={{ fontSize: '11px', color: 'var(--warning)', fontWeight: 600 }}>⚠️ Competitor = amber</span>
+                          )}
+                          {cellData.verdict === 'Appeared' && (
+                            <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>✓ Your brand = green</span>
+                          )}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(cellData.response_text); }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '12px', fontWeight: 600, padding: 0 }}
+                          >
+                            📋 Copy
+                          </button>
+                        </div>
+                      </div>
+                      <div className="custom-scrollbar" style={{ padding: '16px', maxHeight: '200px', overflowY: 'auto', background: 'var(--bg-card)', fontSize: '14px', lineHeight: '1.7', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', whiteSpace: 'pre-wrap' }}>
+                        {highlightBrand(cellData.response_text, report.profile?.businessName || report.domain, cellData.competitor_displaced, report.competitors)}
                       </div>
                     </div>
 
-                    {/* Collapsible Section 3: What to improve next */}
-                    <div style={{ padding: '16px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
-                      <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>What to improve next</span>
-                      <p style={{ margin: 0, fontSize: '14.5px', color: 'var(--text-main)', lineHeight: '1.5' }}>
-                        {WHAT_TO_IMPROVE_LABELS[cellData.reason_tag as keyof typeof WHAT_TO_IMPROVE_LABELS] || 'Strengthen service page copy and add structured data.'}
+                    {/* Section 3: Sources the AI used */}
+                    {cellData.web_sources && cellData.web_sources.length > 0 && (
+                      <div style={{ padding: '16px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+                        <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.05em' }}>🔗 Sources the AI read before answering</span>
+                        <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>If your site isn't listed here, the AI didn't see it.</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {cellData.web_sources.map((src: any, idx: number) => {
+                            const url = typeof src === 'string' ? src : src.url;
+                            const title = typeof src === 'string' ? url : (src.title || url);
+                            const isYours = url && url.toLowerCase().includes(report.domain?.toLowerCase());
+                            const competitor = cellData.competitor_displaced || '';
+                            const isCompetitor = competitor && url && url.toLowerCase().includes(competitor.toLowerCase().replace(/\s+/g, ''));
+                            return (
+                              <a 
+                                key={idx} 
+                                href={url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                style={{ 
+                                  display: 'flex', alignItems: 'center', gap: '8px',
+                                  padding: '8px 10px', 
+                                  borderRadius: '6px', 
+                                  background: isYours ? 'rgba(16, 185, 129, 0.08)' : isCompetitor ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-card)',
+                                  border: `1px solid ${isYours ? 'rgba(16, 185, 129, 0.2)' : isCompetitor ? 'rgba(245, 158, 11, 0.2)' : 'var(--border-color)'}`,
+                                  textDecoration: 'none',
+                                  fontSize: '12px',
+                                  color: isYours ? 'var(--success)' : isCompetitor ? 'var(--warning)' : 'var(--text-secondary)',
+                                  fontWeight: isYours || isCompetitor ? 600 : 400,
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <span style={{ flexShrink: 0 }}>{isYours ? '✓' : isCompetitor ? '⚠️' : '🔗'}</span>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section 4: Why this happened */}
+                    <div style={{ padding: '14px 16px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+                      <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>Why this happened</span>
+                      <span style={{ display: 'inline-block', padding: '4px 10px', background: cellData.verdict === 'Appeared' ? 'var(--success-bg)' : 'var(--warning-bg)', color: cellData.verdict === 'Appeared' ? 'var(--success)' : 'var(--warning)', border: `1px solid ${cellData.verdict === 'Appeared' ? 'var(--success-border)' : 'var(--warning-border)'}`, borderRadius: '6px', fontSize: '13px', fontWeight: 600 }}>
+                        {WHY_HAPPENED_LABELS[cellData.reason_tag as keyof typeof WHY_HAPPENED_LABELS] || 'Low citation signal'}
+                      </span>
+                    </div>
+
+                    {/* Section 5: What to fix */}
+                    <div style={{ padding: '14px 16px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+                      <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>What to fix</span>
+                      <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-main)', lineHeight: '1.55' }}>
+                        {WHAT_TO_IMPROVE_LABELS[cellData.reason_tag as keyof typeof WHAT_TO_IMPROVE_LABELS] || 'Strengthen your service page copy and add structured data.'}
                       </p>
                     </div>
 
-                    {/* Collapsible Section 4: Full AI answer */}
-                    <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
-                      <div 
-                        style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'var(--bg-main)', borderBottom: expandedTranscript ? '1px solid var(--border-color)' : 'none' }}
-                      >
-                        <button 
-                          onClick={() => setExpandedTranscript(!expandedTranscript)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontWeight: 600, color: 'var(--text-primary)', outline: 'none', display: 'flex', alignItems: 'center', gap: '8px', padding: 0 }}
-                        >
-                          <span>Full AI answer</span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 400 }}>({expandedTranscript ? 'Hide response ▴' : 'Show response ▾'})</span>
-                        </button>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(cellData.response_text);
-                            alert('AI response copied!');
-                          }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '13px', fontWeight: 600, padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
-                        >
-                          📋 Copy Response
-                        </button>
-                      </div>
-                      
-                      {expandedTranscript && (
-                        <div className="custom-scrollbar" style={{ padding: '16px', maxHeight: '220px', overflowY: 'auto', background: 'var(--bg-card)', fontSize: '14px', lineHeight: '1.65', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', whiteSpace: 'pre-wrap', borderTop: '1px solid var(--border-color)' }}>
-                          {highlightBrand(cellData.response_text, report.profile?.businessName || report.domain, cellData.competitor_displaced, report.competitors)}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Persistent Action CTA */}
+                    {/* CTA */}
                     <button 
                       className="btn btn-primary" 
-                      style={{ width: '100%', marginTop: '8px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      style={{ width: '100%', marginTop: '4px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       onClick={() => {
                         if (isFreeUser) {
                           triggerUpgrade('cell_detail_fix_btn');
@@ -1110,6 +1140,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
                     >
                       {isFreeUser && '🔒 '}Fix this issue
                     </button>
+
                   </div>
                 ) : (
                   <div style={{ color: 'var(--text-secondary)' }}>Failed to load cell details.</div>
