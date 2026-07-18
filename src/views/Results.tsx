@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { ScanReport, CheckResult, FixItem } from '../lib/scanEngine';
-import ActionDraft from '../components/ActionDraft';
+
 import './Results.css';
 
 interface ResultsProps {
@@ -115,7 +115,7 @@ export default function Results({ user, report, description, onRescan, onNavigat
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeTrigger, setUpgradeTrigger] = useState('');
   const [viewedCells, setViewedCells] = useState<string[]>([]);
-  const [activeFixId, setActiveFixId] = useState<string | null>(null);
+
   const getFallbackProfile = () => {
     if (!report.domain) return null;
     
@@ -689,11 +689,11 @@ export default function Results({ user, report, description, onRescan, onNavigat
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginTop: '8px' }}>
             <div className="results-card" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Visibility Score</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Citation Rate</span>
               <span style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-primary)' }}>
                 <AnimatedCounter value={compositeScore || 0} />%
               </span>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Combined AI citation footprint</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>How often AI recommends your business</span>
             </div>
             <div className="results-card" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prompt Coverage</span>
@@ -1125,22 +1125,6 @@ export default function Results({ user, report, description, onRescan, onNavigat
                       </p>
                     </div>
 
-                    {/* CTA */}
-                    <button 
-                      className="btn btn-primary" 
-                      style={{ width: '100%', marginTop: '4px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={() => {
-                        if (isFreeUser) {
-                          triggerUpgrade('cell_detail_fix_btn');
-                          trackEvent('locked_section_clicked', { section_name: 'cell_fix_button' });
-                        } else {
-                          handleFixFromCell(selectedCell.prompt_type);
-                        }
-                      }}
-                    >
-                      {isFreeUser && '🔒 '}Fix this issue
-                    </button>
-
                   </div>
                 ) : (
                   <div style={{ color: 'var(--text-secondary)' }}>Failed to load cell details.</div>
@@ -1152,108 +1136,52 @@ export default function Results({ user, report, description, onRescan, onNavigat
           {/* Action Recommendations Card */}
           <div className="results-card ai-recommendation-card" style={{ marginTop: '24px' }}>
             <div className="rec-header-block">
-              <h3>Top recommendations</h3>
-              <p className="rec-subheader">Based on your latest scan</p>
-              <small className="rec-disclaimer">We only recommend fixes we can verify from your scan. No guesswork, no generic AI advice.</small>
+              <h3>Visibility gaps</h3>
+              <p className="rec-subheader">Why AI isn't citing you</p>
+              <small className="rec-disclaimer">Verified gaps based on where your competitors are currently winning.</small>
             </div>
             
             {(!topFixes || topFixes.length === 0) ? (
               <div className="recommendations-empty">
-                <p><strong>No reliable recommendations yet</strong></p>
-                <p>Run more prompts or add another model to improve confidence</p>
+                <p><strong>No gaps detected yet</strong></p>
+                <p>Run more prompts or add another model to gather more intelligence</p>
               </div>
             ) : (
               <div className="recommendations-list" style={{ marginTop: '16px' }}>
                 {topFixes.slice(0, isFreeUser ? 2 : topFixes.length).map((fix: any, idx: number) => {
-                  const isExpanded = activeFixId === fix.id;
                   
-                  // Determine matching ActionDraft type
-                  let draftType: 'llms' | 'schema' | 'robots' | 'meta' | 'faq' | null = null;
-                  const category = fix.category;
-                  const title = fix.title.toLowerCase();
-                  const desc = (fix.description || '').toLowerCase();
-                  
-                  if (category === 'schema_markup') draftType = 'schema';
-                  else if (category === 'crawler_access') {
-                    draftType = title.includes('llms') ? 'llms' : 'robots';
-                  } else if (category === 'content_gap') {
-                    draftType = title.includes('faq') ? 'faq' : 'meta';
-                  } else {
-                    // Fallback heuristics for older scans lacking a category field
-                    if (title.includes('schema') || desc.includes('schema') || title.includes('structured data')) {
-                      draftType = 'schema';
-                    } else if (title.includes('llms') || desc.includes('llms')) {
-                      draftType = 'llms';
-                    } else if (title.includes('robots') || desc.includes('robots') || title.includes('crawler')) {
-                      draftType = 'robots';
-                    } else if (title.includes('faq') || desc.includes('faq')) {
-                      draftType = 'faq';
-                    } else if (title.includes('title') || title.includes('description') || desc.includes('meta')) {
-                      draftType = 'meta';
-                    } else {
-                      // Generic default fallback (instructions only)
-                      draftType = 'manual';
-                    }
-                  }
-                  
-                  // Check status for checks
-                  const checkIdMap: Record<string, string> = {
-                    llms: 'llms',
-                    schema: 'schema',
-                    robots: 'robots',
-                    meta: 'meta-title',
-                    faq: 'faq',
+                  // Map category to a nice label and color
+                  const gapLabels: Record<string, { label: string, color: string, bg: string, border: string }> = {
+                    'distribution_gap': { label: 'Distribution Gap', color: 'var(--primary)', bg: 'rgba(99, 102, 241, 0.1)', border: 'rgba(99, 102, 241, 0.2)' },
+                    'comparison_gap': { label: 'Comparison Gap', color: 'var(--warning)', bg: 'rgba(245, 158, 11, 0.1)', border: 'rgba(245, 158, 11, 0.2)' },
+                    'direct_citation_gap': { label: 'Direct Citation Gap', color: 'var(--success)', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.2)' }
                   };
-                  const checkId = draftType ? checkIdMap[draftType] : '';
-                  const check = technicalChecks.find(c => c.id === checkId);
-                  const detected = check ? check.status !== 'pass' : false;
+                  const style = gapLabels[fix.category] || gapLabels['distribution_gap'];
 
                   return (
-                    <div key={idx} className="recommendation-item" style={{ padding: '16px 0', borderBottom: idx < (isFreeUser ? 2 : topFixes.length) - 1 ? '1px solid var(--border-color)' : 'none' }}>
-                      <div className="rec-header" style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                        <span className="rec-number" style={{ background: 'var(--primary-glow)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 700 }}>#{idx + 1}</span>
-                        <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>{fix.title}</h4>
+                    <div key={idx} className="recommendation-item" style={{ padding: '20px 0', borderBottom: idx < (isFreeUser ? 2 : topFixes.length) - 1 ? '1px solid var(--border-color)' : 'none' }}>
+                      <div className="rec-header" style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+                        <span style={{ 
+                          background: style.bg, 
+                          color: style.color, 
+                          border: `1px solid ${style.border}`,
+                          padding: '4px 10px', 
+                          borderRadius: '6px', 
+                          fontSize: '11px', 
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}>
+                          {style.label}
+                        </span>
                       </div>
-                      <p className="rec-desc" style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 12px 0', lineHeight: '1.5' }}>{fix.reason || fix.description}</p>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>{fix.title}</h4>
+                      <p className="rec-desc" style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 16px 0', lineHeight: '1.5' }}>{fix.description}</p>
                       
-                      <div className="rec-chips" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                        {fix.evidence && <span className="chip evidence-chip" style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>Evidence: {fix.evidence}</span>}
-                        <span className="chip impact-chip" style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>Expected impact: {fix.impact || 'High'}</span>
-                      </div>
-                      
-                      {!isExpanded ? (
-                        <button 
-                          className="btn btn-secondary btn-sm rec-cta" 
-                          onClick={() => {
-                            if (isFreeUser) {
-                              triggerUpgrade('apply_fix_btn');
-                              trackEvent('locked_section_clicked', { section_name: 'apply_fix' });
-                            } else {
-                              trackEvent('fix_card_expanded', { fix_type: draftType, fix_title: fix.title, fix_rank: idx + 1 });
-                              setActiveFixId(fix.id);
-                            }
-                          }}
-                        >
-                          {isFreeUser && '🔒 '}{fix.actionLabel || 'Apply this fix'}
-                        </button>
-                      ) : (
-                        <div style={{ marginTop: '16px' }}>
-                          <button 
-                            className="btn btn-secondary btn-sm"
-                            style={{ marginBottom: '12px', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
-                            onClick={() => setActiveFixId(null)}
-                          >
-                            Hide details ▴
-                          </button>
-                          {draftType && profile && (
-                            <ActionDraft
-                              type={draftType}
-                              profile={profile}
-                              domain={report.domain}
-                              detected={detected}
-                              description={fix.reason || fix.description}
-                            />
-                          )}
+                      {fix.evidence && (
+                        <div style={{ padding: '12px 14px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Verified Evidence</span>
+                          <span style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: '1.4' }}>{fix.evidence}</span>
                         </div>
                       )}
                     </div>

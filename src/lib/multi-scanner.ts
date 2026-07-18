@@ -491,7 +491,7 @@ Return ONLY a JSON object with a "businesses" array of strings.`;
     const technicalScore = Math.round((passCount / 14) * 100);
     const avgCitedCount = (geminiCitedCount + chatgptCitedCount + perplexityCitedCount) / 3;
     const citationRate = avgCitedCount / allQueries.length;
-    const compositeScore = Math.round((technicalScore * 0.3) + ((citationRate * 100) * 0.7));
+    const compositeScore = Math.round(citationRate * 100);
 
     let scanId = null;
     try {

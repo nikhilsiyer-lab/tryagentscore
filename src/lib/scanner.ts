@@ -229,29 +229,17 @@ export function checkTop10Citation(responseText: string, domain: string, busines
 
 export async function generateFixSuggestions(html: string, queryResults?: any[]) {
   try {
-    const cleanText = cleanHtmlText(html).substring(0, 3000);
-    
-    // Prepare a summary of the scan results to ground the LLM
     let scanResultsSummary = "No scan data available.";
     if (queryResults && queryResults.length > 0) {
       scanResultsSummary = queryResults.map((q: any) => {
+        const sources = q.webSources?.map((s:any)=>s.url).join(', ') || 'None';
         return `Query: "${q.query}"
+- Web Sources Used: ${sources}
 - ChatGPT: ${q.gptCited ? 'Cited' : `Not Cited (Competitors: ${q.gptMentions?.join(', ') || 'None'})`}
 - Perplexity: ${q.perplexityCited ? 'Cited' : `Not Cited (Competitors: ${q.pxMentions?.join(', ') || 'None'})`}
 - Gemini: ${q.geminiCited ? 'Cited' : `Not Cited (Competitors: ${q.gmMentions?.join(', ') || 'None'})`}`;
       }).join('\n\n');
     }
-
-    // Check for technical elements in raw HTML before text cleaning
-    const hasSchema = html.includes('application/ld+json');
-    const hasTitle = html.toLowerCase().includes('<title');
-    const hasMetaDesc = html.toLowerCase().includes('name="description"') || html.toLowerCase().includes('name="description"');
-    
-    const technicalChecklist = `
-- JSON-LD Schema: ${hasSchema ? 'Detected on page' : 'Missing'}
-- HTML Page Title: ${hasTitle ? 'Detected' : 'Missing'}
-- Meta Description: ${hasMetaDesc ? 'Detected' : 'Missing'}
-`.trim();
 
     const response = await Promise.race([
       getGroq().chat.completions.create({
@@ -259,11 +247,11 @@ export async function generateFixSuggestions(html: string, queryResults?: any[])
         messages: [
           {
             role: 'system',
-            content: 'You are an SEO and AI-visibility expert. Based on the website text and the scan results (the citation gaps where competitors are recommended instead of this brand), generate exactly 3 concrete, customized fix recommendations to improve the site\'s visibility in AI search. Each recommendation MUST be grounded in the verified gaps and HTML.\n\nCRITICAL: Do not suggest implementing basic JSON-LD Schema markup or robots.txt if the Technical Checklist indicates they are already detected on the page, unless you are recommending adding specific missing details (like a competitor index catalog or a local business location proof).\n\nAssign a category:\n1. "schema_markup" (Structured data / schema markup generation)\n2. "crawler_access" (AI crawler access fixes like robots.txt / llms.txt)\n3. "content_gap" (Content gap fixes like page title, meta description, FAQ content)\n4. "citation_outreach" (Citation-source directory listing outreach)\n5. "technical_ux" (Technical/UX fixes like page speed, mobile view, navigation)\n\nProvide a composite confidence score (0-100) for each recommendation based on cross-model agreement and data verification.\n\nReturn ONLY a JSON object with a key "fixes" containing an array of 3 objects, each with "title" (string), "description" (string), "impact" ("Critical" | "High" | "Medium"), "timeEstimate" (string), "category" (string matching one of the five categories), "confidenceScore" (number between 0 and 100), "evidence" (string), and "tier" ("quick_win" | "this_week" | "hire_dev"). Order them from highest to lowest impact.'
+            content: 'You are an SEO and AI-visibility expert. Based on the scan results (which include citation gaps, competitor mentions, and web sources where AI found the answers), generate exactly 3 concrete, customized action gaps to explain why the site\'s visibility is low in AI search.\n\nAssign a category to each gap from the following mutually exclusive options:\n1. "distribution_gap" (Competitor is cited via a third-party directory, review site, or forum like Reddit, G2, Yelp).\n2. "comparison_gap" (Brand is missing from direct "vs" comparison queries).\n3. "direct_citation_gap" (Competitors are being cited directly from their own domain, meaning the AI inherently trusts their brand authority).\n\nEach gap MUST be grounded in the provided scan data, specifically referencing competitor names and the exact source URLs where they were found.\n\nReturn ONLY a JSON object with a key "fixes" containing an array of 3 objects, each with:\n- "title" (string, short gap title)\n- "description" (string, explaining why this gap exists)\n- "impact" ("Critical" | "High" | "Medium")\n- "category" ("distribution_gap" | "comparison_gap" | "direct_citation_gap")\n- "evidence" (string, the concrete proof citing specific competitor and source URL).'
           },
           {
             role: 'user',
-            content: `Website HTML Text:\n${cleanText}\n\nTechnical Checklist:\n${technicalChecklist}\n\nAI Scan Citation Results:\n${scanResultsSummary}`
+            content: `AI Scan Citation Results:\n${scanResultsSummary}`
           }
         ],
         response_format: { type: 'json_object' }
@@ -272,41 +260,16 @@ export async function generateFixSuggestions(html: string, queryResults?: any[])
     ]) as any;
     
     const data = JSON.parse(response.choices[0]?.message?.content || '{}');
-    const fixes = data.fixes || [];
-    
-    const validatedFixes = fixes.map((fix: any) => {
-      let score = fix.confidenceScore || 70;
-      if (score < 50) score = 50; // clamp
-      return {
-        ...fix,
-        confidenceScore: score,
-        unverified: score < 75
-      };
-    });
-
-    return validatedFixes.slice(0, 3);
+    return (data.fixes || []).slice(0, 3);
   } catch (e) {
-    console.error('Failed to generate fix suggestions:', e);
+    console.error('Failed to generate visibility gaps:', e);
     return [
       {
-        title: 'Add local business schema markup',
-        description: 'Implement LocalBusiness JSON-LD schema on your homepage to explicitly define your services, hours, and location for AI crawlers.',
+        title: 'Direct Citation Gap',
+        description: 'Competitors are being cited directly from their own domains for high-intent queries, indicating a gap in foundational brand authority.',
         impact: 'High',
-        timeEstimate: '20 minutes',
-        category: 'schema_markup',
-        confidenceScore: 90,
-        tier: 'quick_win',
-        evidence: 'No structured data schema detected.'
-      },
-      {
-        title: 'Create an llms.txt directory file',
-        description: 'Publish an llms.txt file to the root of your domain to directly feed AI search engines with clean context about your business.',
-        impact: 'High',
-        timeEstimate: '10 minutes',
-        category: 'crawler_access',
-        confidenceScore: 85,
-        tier: 'quick_win',
-        evidence: 'Missing standard LLMs directory data.'
+        category: 'direct_citation_gap',
+        evidence: 'Competitors were cited without relying on third-party directories.'
       }
     ];
   }
