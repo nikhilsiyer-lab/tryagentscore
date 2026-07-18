@@ -1345,19 +1345,6 @@ export default function Results({ user, report, description, onRescan, onNavigat
         <button 
           onClick={() => {
             if (isFreeUser) {
-              triggerUpgrade('copy_summary');
-              trackEvent('locked_section_clicked', { section_name: 'copy_summary' });
-            } else {
-              copySummary();
-            }
-          }} 
-          className="btn btn-secondary"
-        >
-          {isFreeUser && '🔒 '}Copy summary
-        </button>
-        <button 
-          onClick={() => {
-            if (isFreeUser) {
               triggerUpgrade('export_pdf');
               trackEvent('locked_section_clicked', { section_name: 'export_pdf' });
             } else {
