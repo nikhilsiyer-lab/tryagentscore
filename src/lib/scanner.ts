@@ -247,7 +247,7 @@ export async function generateFixSuggestions(html: string, queryResults?: any[])
         messages: [
           {
             role: 'system',
-            content: 'You are an SEO and AI-visibility expert. Based on the scan results (which include citation gaps, competitor mentions, and web sources where AI found the answers), generate exactly 3 concrete, customized action gaps to explain why the site\'s visibility is low in AI search.\n\nAssign a category to each gap from the following mutually exclusive options:\n1. "distribution_gap" (Competitor is cited via a third-party directory, review site, or forum like Reddit, G2, Yelp).\n2. "comparison_gap" (Brand is missing from direct "vs" comparison queries).\n3. "direct_citation_gap" (Competitors are being cited directly from their own domain, meaning the AI inherently trusts their brand authority).\n\nEach gap MUST be grounded in the provided scan data, specifically referencing competitor names and the exact source URLs where they were found.\n\nReturn ONLY a JSON object with a key "fixes" containing an array of 3 objects, each with:\n- "title" (string, short gap title)\n- "description" (string, explaining why this gap exists)\n- "impact" ("Critical" | "High" | "Medium")\n- "category" ("distribution_gap" | "comparison_gap" | "direct_citation_gap")\n- "evidence" (string, the concrete proof citing specific competitor and source URL).'
+            content: 'You are an SEO and AI-visibility expert. Based on the scan results (which include citation gaps, competitor mentions, and web sources where AI found the answers), generate exactly 3 concrete, customized action gaps to explain why the site\'s visibility is low in AI search.\n\nCRITICAL: DO NOT use generic marketing jargon or buzzwords (e.g., "foundational brand authority", "high-intent queries", "visibility footprint", "digital footprint"). Talk in a direct, literal, plain-spoken style like a developer explaining a technical fact to a business owner.\n\nAssign a category to each gap from the following mutually exclusive options:\n1. "distribution_gap" (Competitor is cited via a third-party directory, review site, or forum like Reddit, G2, Yelp).\n2. "comparison_gap" (Brand is missing from direct "vs" comparison queries).\n3. "direct_citation_gap" (Competitors are being cited directly from their own domain/website, meaning the AI pulls information straight from their pages instead of intermediary directories).\n\nEach gap MUST be grounded in the provided scan data, specifically referencing competitor names and the exact source URLs where they were found. Explain the gap in plain English (e.g., "ChatGPT cited competitor.com directly for comparison query X. You need similar comparison or feature landing pages on your site").\n\nReturn ONLY a JSON object with a key "fixes" containing an array of 3 objects, each with:\n- "title" (string, short gap title, e.g. "Competitors cited directly from their site" or "Missing from G2 listings")\n- "description" (string, simple plain-spoken explanation of what is missing)\n- "impact" ("Critical" | "High" | "Medium")\n- "category" ("distribution_gap" | "comparison_gap" | "direct_citation_gap")\n- "evidence" (string, the concrete proof stating exactly which competitor was cited and the source URL).'
           },
           {
             role: 'user',
@@ -265,11 +265,11 @@ export async function generateFixSuggestions(html: string, queryResults?: any[])
     console.error('Failed to generate visibility gaps:', e);
     return [
       {
-        title: 'Direct Citation Gap',
-        description: 'Competitors are being cited directly from their own domains for high-intent queries, indicating a gap in foundational brand authority.',
+        title: 'Competitors cited directly from their websites',
+        description: 'The AI recommended competitors by reading information directly from their own homepages and feature pages, rather than pulling from third-party directories or forums.',
         impact: 'High',
         category: 'direct_citation_gap',
-        evidence: 'Competitors were cited without relying on third-party directories.'
+        evidence: 'Competitors were cited from their own domains during this scan.'
       }
     ];
   }
